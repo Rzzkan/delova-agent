@@ -1,113 +1,116 @@
 # Shopee Agent
 
-Server MCP + CLI agar **Claude** bisa mengelola toko Shopee lewat Shopee Open Platform API v2:
-audit SEO, ubah nama & deskripsi produk secara massal, dan atur flash sale.
+Server **MCP** yang berjalan di **Vercel** supaya **chat Claude** menjadi antarmuka utama untuk mengelola toko Shopee
+(Delova Wardrobe, Kids, Scarf) lewat Shopee Open Platform API v2: audit SEO, ubah nama & deskripsi produk massal, dan atur flash sale.
 
-Dibuat untuk toko Delova Wardrobe / Delova Kids / Delova Scarf (satu shop per otorisasi).
+```
+Claude (chat) ──MCP/HTTPS──▶ Vercel (Next.js, /api/mcp) ──▶ Shopee Open Platform API
+                                      │
+                                      └── Upstash Redis (token toko + backup)
+```
 
-## Fitur
+Pembagian peran: **Claude yang menulis ulang judul/deskripsi** (keyword, gaya brand). Aplikasi ini memvalidasi aturan Shopee,
+membuat backup, dan mengirimkannya dengan aman.
 
-| Area | Tool MCP | Keterangan |
+## Tool yang tersedia di Claude
+
+| Area | Tool | Keterangan |
 |---|---|---|
-| Toko | `shop_info` | Cek koneksi |
-| Produk | `list_products`, `get_products` | Ambil id, nama, deskripsi |
-| SEO | `seo_audit` | Cek judul 20-120 karakter, huruf kapital, emoji, spam, kata berulang, deskripsi ≤3000 |
-| Bulk edit | `preview_product_changes`, `apply_product_changes`, `rollback_changes` | Dry-run default, backup otomatis, bisa rollback |
-| Flash sale | `flash_sale_time_slots`, `flash_sale_list`, `flash_sale_detail`, `flash_sale_create`, `flash_sale_set_status`, `flash_sale_delete` | Dry-run default, hapus butuh `confirm` |
+| Toko | `list_shops`, `shop_info` | Multi-toko; sebut `shop_id` bila lebih dari satu |
+| Produk | `list_products`, `get_products` | Paginasi `offset`; deskripsi dipotong di list |
+| SEO | `seo_audit` | Judul 20-120 karakter, kapital, emoji, spam, kata berulang, deskripsi ≤3000 |
+| Edit massal | `preview_product_changes`, `apply_product_changes`, `list_backups`, `rollback_changes` | Dry-run default, backup otomatis, maks 40 produk/panggilan |
+| Flash sale | `flash_sale_time_slots`, `_list`, `_detail`, `_create`, `_set_status`, `_delete` | Dry-run default; hapus butuh `confirm` |
 
-Pembagian peran: **Claude yang menulis ulang judul/deskripsi** (keyword Shopee, gaya brand),
-aplikasi ini yang memvalidasi, mem-backup, dan mengirimkannya ke Shopee dengan aman.
+## Deploy ke Vercel
 
-## Setup
+### 1. Push repo ke GitHub, lalu import di Vercel
+`vercel.com/new` → pilih repo `shopee-agent`. Framework terdeteksi otomatis (Next.js).
 
-1. Daftar & buat app di [Shopee Open Platform](https://open.shopee.com), catat **Partner ID** dan **Partner Key**.
-   Daftarkan Redirect URL (mis. `https://example.com/callback`).
-2. Install:
-   ```bash
-   cd "Shopee Agent"
-   python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-   pip install -e ".[dev]"
-   cp .env.example .env     # lalu isi PARTNER_ID, PARTNER_KEY, REDIRECT_URL
-   ```
-3. Login toko (sekali per toko, token berlaku 30 hari dan diperbarui otomatis):
-   ```bash
-   shopee-agent auth-url                 # buka URL di browser, login sebagai seller, izinkan
-   # Browser redirect ke: https://example.com/callback?code=XXXX&shop_id=YYYY
-   shopee-agent auth-exchange XXXX --shop-id YYYY
-   shopee-agent shop-info                # cek koneksi
-   ```
-   Token disimpan di `data/tokens.json` (di-gitignore).
+### 2. Pasang Redis
+Di project Vercel: **Storage → Marketplace → Upstash Redis → Create**, hubungkan ke project.
+Variabel `KV_REST_API_URL` / `KV_REST_API_TOKEN` terisi otomatis. (Vercel tidak punya disk tetap, jadi Redis wajib.)
 
-## Pakai dengan Claude
+### 3. Isi Environment Variables
+| Variabel | Isi |
+|---|---|
+| `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | Dari Shopee Open Platform Console |
+| `MCP_SECRET` | Acak ≥16 karakter, mis. `openssl rand -hex 24`. **Kunci akses ke seluruh toko Anda.** |
+| `SHOPEE_ENV` | `production` (atau `sandbox` untuk uji) |
+| `SHOPEE_READ_ONLY` | `true` untuk audit saja (opsional) |
 
-**Claude Code** (otomatis membaca `.mcp.json` di folder ini):
-```bash
-cd "Shopee Agent" && claude
-```
+Lalu **Redeploy**. Catat domain produksinya, mis. `https://shopee-agent.vercel.app`.
 
-**Claude Desktop**: tambahkan ke `claude_desktop_config.json`:
-```json
-{
-  "mcpServers": {
-    "shopee-agent": {
-      "command": "/PATH/ke/Shopee Agent/.venv/bin/python",
-      "args": ["-m", "shopee_agent.mcp_server"],
-      "cwd": "/PATH/ke/Shopee Agent"
-    }
-  }
-}
-```
+### 4. Daftarkan Redirect URL di Shopee
+Di app Shopee Open Platform, set Redirect URL ke:
+`https://<domain-anda>/api/shopee/callback`
 
-Contoh perintah ke Claude:
-- "Audit SEO semua produk, tampilkan yang bermasalah."
-- "Tulis ulang judul 30 produk kebaya ini dengan keyword *kebaya modern wanita*, panjang 90-120 karakter, tampilkan preview dulu."
-- "Oke, terapkan." (Claude baru memanggil `apply_product_changes(dry_run=False)`)
-- "Buat flash sale untuk slot besok jam 12:00, item X harga 79rb, limit 2 per pembeli."
-- "Kembalikan perubahan tadi" (rollback dari backup).
+### 5. Hubungkan tiap toko (sekali per toko)
+Buka di browser:
+`https://<domain-anda>/api/shopee/connect?key=<MCP_SECRET>`
+Login sebagai seller toko tersebut → **Confirm Authorization** → muncul "Toko terhubung".
+Ulangi untuk Kids dan Scarf (login ke akun toko masing-masing). Token berlaku 30 hari dan diperbarui otomatis.
 
-## CLI (tanpa Claude)
+### 6. Tambahkan ke Claude
+- **Claude.ai / aplikasi desktop**: Settings → Connectors → *Add custom connector* →
+  URL: `https://<domain-anda>/api/mcp?key=<MCP_SECRET>`
+- **Claude Code**:
+  ```bash
+  claude mcp add --transport http shopee-agent https://<domain-anda>/api/mcp \
+    --header "Authorization: Bearer <MCP_SECRET>"
+  ```
 
-```bash
-shopee-agent list --limit 20
-shopee-agent audit
-shopee-agent export produk.csv        # edit di Excel/Sheets: kolom item_id, item_name, description
-shopee-agent import produk.csv        # dry-run
-shopee-agent import produk.csv --apply
-shopee-agent rollback data/backups/backup_YYYYMMDD_HHMMSS.json
-shopee-agent flash-slots --days 7
-```
+## Contoh percakapan
+
+- "Daftar toko Shopee yang terhubung."
+- "Audit SEO halaman pertama produk Delova Wardrobe, tampilkan yang bermasalah."
+- "Tulis ulang judul 20 produk kebaya itu dengan keyword *kebaya modern wanita*, 90-120 karakter. Preview dulu."
+- "Oke, terapkan." → Claude memanggil `apply_product_changes(dry_run=false)`.
+- "Kembalikan perubahan tadi." → `rollback_changes`.
+- "Buat flash sale slot besok jam 12:00 untuk produk X harga 79rb, limit 2 per pembeli."
+
+Untuk ratusan produk Claude akan memproses per batch (≤40 produk per panggilan karena batas waktu fungsi Vercel).
 
 ## Keamanan
 
-- `.env` dan `data/` (token, backup) **tidak pernah** di-commit.
-- Semua operasi tulis default **dry-run**. Set `SHOPEE_READ_ONLY=true` untuk memblokir semua penulisan.
-- Perubahan yang melanggar batas Shopee (nama 20-120, deskripsi >3000) otomatis dilewati.
-- Rate limit dihormati (jeda 250 ms antar panggilan).
+- **`MCP_SECRET` = akses penuh ke toko.** Simpan seperti password. Tanpa `MCP_SECRET` (atau kurang dari 16 karakter) semua endpoint menolak request.
+- Connector Claude.ai tidak bisa mengirim header kustom, sehingga kunci ada di URL (`?key=`) dan bisa muncul di log. Ganti `MCP_SECRET` bila bocor (lalu perbarui URL connector).
+  Untuk keamanan lebih tinggi, tambahkan OAuth penuh (pengembangan lanjutan).
+- Semua operasi tulis default **dry-run**; perubahan yang melanggar batas Shopee dilewati; backup otomatis sebelum menimpa; `SHOPEE_READ_ONLY=true` memblokir semua penulisan.
+- Token Shopee disimpan di Redis, bukan di repo. Jangan commit `.env`.
+- Aktifkan **Vercel Deployment Protection** hanya untuk preview; jangan untuk produksi, karena Claude perlu mengakses `/api/mcp`.
 
 ## Catatan penting
 
 - Endpoint & nama field ditulis dari dokumentasi Shopee Open Platform v2 tetapi **belum diuji ke toko nyata**
-  (butuh kredensial). Uji dulu di `SHOPEE_ENV=sandbox` atau dengan 1-2 produk; cek
-  [dokumentasi](https://open.shopee.com/documents) bila ada error. Modul flash sale paling perlu diverifikasi.
-- Perubahan nama produk yang sering dapat memengaruhi ranking; ubah bertahap dan pantau.
+  (butuh kredensial). Uji dulu dengan `SHOPEE_ENV=sandbox` atau 1-2 produk. Modul flash sale paling perlu diverifikasi.
 - Akses API produk/flash sale tergantung izin (permission) app Anda di Shopee Open Platform.
+- Plan Hobby Vercel membatasi fungsi hingga 60 dtk; cukup untuk batch 40 produk.
+- Akun utama (*main account*) Shopee belum didukung; otorisasi dilakukan per toko.
 
-## Pengujian
+## Pengembangan lokal
 
 ```bash
-pytest
+npm install
+cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
+npm run dev                     # http://localhost:3000/api/mcp?key=...
+npm test                        # 15 tes: signing, SEO, auth, alur bulk/backup/rollback/refresh
+npm run typecheck
 ```
+
+Uji tanpa Claude (MCP Inspector): `npx @modelcontextprotocol/inspector` → Streamable HTTP → URL di atas.
 
 ## Struktur
 
 ```
-shopee_agent/
-  client.py      signing HMAC, OAuth, auto-refresh token
-  products.py    list / detail / update produk
-  bulk.py        preview, apply, backup, rollback, CSV
-  seo.py         aturan SEO judul & deskripsi
-  flash_sale.py  shop flash sale
-  mcp_server.py  tool untuk Claude
-  cli.py         perintah terminal
+src/app/api/[transport]/route.ts   endpoint MCP (/api/mcp), auth rahasia
+src/app/api/shopee/connect         mulai otorisasi toko
+src/app/api/shopee/callback        Redirect URL Shopee, simpan token
+src/lib/shopee.ts                  signing HMAC, OAuth, auto-refresh token
+src/lib/tools.ts                   definisi tool untuk Claude
+src/lib/{products,bulk,seo,flashSale}.ts
+src/lib/store.ts                   Upstash Redis (prod) / file (lokal)
 tests/
 ```
+
+Versi Python/CLI sebelumnya (v0.1) masih ada di riwayat git.

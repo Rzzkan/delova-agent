@@ -1,8 +1,9 @@
+node_modules/
+.next/
 .env
-data/
-__pycache__/
-*.pyc
-.venv/
-*.egg-info/
-.pytest_cache/
-*.csv
+.env*.local
+.data/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store

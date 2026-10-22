@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "shopee-agent": {
-      "command": "python",
-      "args": ["-m", "shopee_agent.mcp_server"],
-      "cwd": "."
-    }
-  }
-}

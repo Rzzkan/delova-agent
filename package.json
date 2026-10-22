@@ -1,0 +1,34 @@
+{
+  "name": "shopee-agent",
+  "version": "0.2.0",
+  "private": true,
+  "description": "MCP server (Vercel) agar Claude bisa mengelola toko Shopee: produk, SEO massal, flash sale",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@upstash/redis": "^1.39.0",
+    "mcp-handler": "^1.1.0",
+    "next": "16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "typescript": "^5.9.3",
+    "vitest": "5.0.5"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
+  }
+}

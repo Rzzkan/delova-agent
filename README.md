@@ -25,42 +25,11 @@ membuat backup, dan mengirimkannya dengan aman.
 
 ## Deploy ke Vercel
 
-### 1. Push repo ke GitHub, lalu import di Vercel
-`vercel.com/new` → pilih repo `shopee-agent`. Framework terdeteksi otomatis (Next.js).
+Panduan langkah demi langkah (GitHub → Vercel → Redis → Shopee → verifikasi → connector Claude → uji bertahap → troubleshooting) ada di **[DEPLOY.md](DEPLOY.md)**.
 
-### 2. Pasang Redis
-Di project Vercel: **Storage → Marketplace → Upstash Redis → Create**, hubungkan ke project.
-Variabel `KV_REST_API_URL` / `KV_REST_API_TOKEN` terisi otomatis. (Vercel tidak punya disk tetap, jadi Redis wajib.)
-
-### 3. Isi Environment Variables
-| Variabel | Isi |
-|---|---|
-| `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | Dari Shopee Open Platform Console |
-| `MCP_SECRET` | Acak ≥16 karakter, mis. `openssl rand -hex 24`. **Kunci akses ke seluruh toko Anda.** |
-| `SHOPEE_ENV` | `production` (atau `sandbox` untuk uji) |
-| `CRON_SECRET` | Sama dengan `MCP_SECRET` (agar Vercel Cron bisa memanggil worker) |
-| `SHOPEE_READ_ONLY` | `true` untuk audit saja (opsional) |
-
-Lalu **Redeploy**. Catat domain produksinya, mis. `https://shopee-agent.vercel.app`.
-
-### 4. Daftarkan Redirect URL di Shopee
-Di app Shopee Open Platform, set Redirect URL ke:
-`https://<domain-anda>/api/shopee/callback`
-
-### 5. Hubungkan tiap toko (sekali per toko)
-Buka di browser:
-`https://<domain-anda>/api/shopee/connect?key=<MCP_SECRET>`
-Login sebagai seller toko tersebut → **Confirm Authorization** → muncul "Toko terhubung".
-Ulangi untuk Kids dan Scarf (login ke akun toko masing-masing). Token berlaku 30 hari dan diperbarui otomatis.
-
-### 6. Tambahkan ke Claude
-- **Claude.ai / aplikasi desktop**: Settings → Connectors → *Add custom connector* →
-  URL: `https://<domain-anda>/api/mcp?key=<MCP_SECRET>`
-- **Claude Code**:
-  ```bash
-  claude mcp add --transport http shopee-agent https://<domain-anda>/api/mcp \
-    --header "Authorization: Bearer <MCP_SECRET>"
-  ```
+Ringkasnya: push repo ke GitHub, import ke Vercel, pasang Upstash Redis, isi env (`MCP_SECRET`, `CRON_SECRET`, `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV`),
+set Redirect URL Shopee ke `https://<domain>/api/shopee/callback`, hubungkan tiap toko lewat `/api/shopee/connect?key=<MCP_SECRET>`, lalu tambahkan
+`https://<domain>/api/mcp?key=<MCP_SECRET>` sebagai custom connector di Claude (Claude Code: `claude mcp add --transport http ... --header "Authorization: Bearer <MCP_SECRET>"`).
 
 ## Antrian edit massal
 

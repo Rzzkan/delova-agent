@@ -2,6 +2,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as bulk from "./bulk";
+import { loadConfig } from "./config";
+import * as queue from "./queue";
 import * as flash from "./flashSale";
 import * as products from "./products";
 import * as seo from "./seo";
@@ -128,7 +130,7 @@ export function registerTools(server: McpServer, mkClient: () => ShopeeClient = 
 
   tool(
     "apply_product_changes",
-    `Terapkan perubahan nama/deskripsi massal (maks ${bulk.MAX_APPLY_PER_CALL} produk per panggilan; bagi jadi batch). Default dry_run=true. Set dry_run=false HANYA setelah pengguna menyetujui preview. Backup otomatis; kembalikan lewat rollback_changes dengan backup_id.`,
+    `Terapkan perubahan nama/deskripsi LANGSUNG untuk jumlah kecil (maks ${bulk.MAX_APPLY_PER_CALL} produk per panggilan). Untuk lebih dari itu gunakan queue_enqueue. Default dry_run=true. Set dry_run=false HANYA setelah pengguna menyetujui preview. Backup otomatis; kembalikan lewat rollback_changes dengan backup_id.`,
     { shop_id: shopId, changes: z.array(change).min(1).max(100), dry_run: z.boolean().default(true) },
     async (a, shop) => bulk.applyChanges(c(), await shop(), a.changes, a.dry_run),
   );
@@ -145,6 +147,60 @@ export function registerTools(server: McpServer, mkClient: () => ShopeeClient = 
     `Pulihkan nama/deskripsi dari backup (maks ${bulk.MAX_APPLY_PER_CALL} produk per panggilan; isi item_ids untuk sebagian).`,
     { backup_id: z.string(), item_ids: z.array(z.number().int()).optional() },
     async (a) => bulk.rollback(c(), a.backup_id, a.item_ids),
+  );
+
+
+  // ------------------------------------------------------------ antrian edit massal
+
+  tool(
+    "queue_enqueue",
+    `Masukkan perubahan nama/deskripsi ke ANTRIAN untuk jumlah besar (hingga ${queue.MAX_JOB_ITEMS} produk per job; ${queue.MAX_PER_ENQUEUE} per panggilan). ` +
+      "Panggilan pertama tanpa job_id membuat job (status draft) dan mengembalikan job_id; panggil lagi dengan job_id yang sama untuk menambah produk. " +
+      "Perubahan yang melanggar batas Shopee ditolak dan dilaporkan di 'rejected'. Set start=true pada panggilan terakhir (atau pakai queue_control start) setelah pengguna menyetujui. " +
+      "Worker memproses otomatis di latar belakang (~90 produk/menit); pantau dengan queue_status.",
+    {
+      shop_id: shopId,
+      changes: z.array(change).min(1).max(queue.MAX_PER_ENQUEUE),
+      job_id: z.string().optional().describe("Isi untuk menambah ke job draft yang sudah ada"),
+      label: z.string().optional().describe("Nama job, mis. 'SEO kebaya batch 1'"),
+      start: z.boolean().default(false).describe("true = langsung jalankan setelah menambahkan"),
+    },
+    async (a, shop) => {
+      const added = await queue.enqueue({ shopId: await shop(), changes: a.changes, jobId: a.job_id, label: a.label });
+      if (!a.start || added.total_in_job === 0) return added;
+      const started = await queue.control(added.job_id, "start");
+      await queue.scheduleKick(loadConfig());
+      return { ...added, ...started };
+    },
+  );
+
+  tool(
+    "queue_control",
+    "Kendalikan job antrian. start: mulai job draft. pause/resume: jeda/lanjutkan. cancel: batalkan sisa (yang sudah terubah tetap). " +
+      "retry_failed: antrekan ulang produk yang gagal. rollback: buat job baru yang memulihkan nama/deskripsi asli semua produk yang sudah berhasil diubah job ini.",
+    { job_id: z.string(), action: z.enum(["start", "pause", "resume", "cancel", "retry_failed", "rollback"]) },
+    async (a) => {
+      const r = await queue.control(a.job_id, a.action);
+      if (["start", "resume", "retry_failed", "rollback"].includes(a.action)) await queue.scheduleKick(loadConfig());
+      return r;
+    },
+  );
+
+  tool(
+    "queue_status",
+    "Status satu job: jumlah selesai/gagal/menunggu, estimasi menit, alasan jeda, dan contoh produk gagal beserta error-nya.",
+    { job_id: z.string() },
+    async (a) => queue.status(a.job_id),
+  );
+
+  tool("queue_list", "Daftar job antrian terbaru beserta progresnya.", {}, async () => queue.listJobs());
+
+  tool(
+    "queue_run",
+    "Jalankan worker secara manual selama ~30 detik dan kembalikan hasilnya. Pakai ini hanya bila queue_status menunjukkan job 'queued' " +
+      "tetapi tidak maju (worker otomatis tidak berjalan). Panggil berulang sampai more=false.",
+    {},
+    async () => queue.runSlice(c(), 30_000),
   );
 
   tool(

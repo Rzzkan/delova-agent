@@ -19,7 +19,8 @@ membuat backup, dan mengirimkannya dengan aman.
 | Toko | `list_shops`, `shop_info` | Multi-toko; sebut `shop_id` bila lebih dari satu |
 | Produk | `list_products`, `get_products` | Paginasi `offset`; deskripsi dipotong di list |
 | SEO | `seo_audit` | Judul 20-120 karakter, kapital, emoji, spam, kata berulang, deskripsi ≤3000 |
-| Edit massal | `preview_product_changes`, `apply_product_changes`, `list_backups`, `rollback_changes` | Dry-run default, backup otomatis, maks 40 produk/panggilan |
+| Edit kecil (langsung) | `preview_product_changes`, `apply_product_changes`, `list_backups`, `rollback_changes` | Dry-run default, backup otomatis, maks 40 produk/panggilan |
+| **Edit massal (antrian)** | `queue_enqueue`, `queue_control`, `queue_status`, `queue_list`, `queue_run` | Hingga 2000 produk/job, diproses otomatis di latar belakang |
 | Flash sale | `flash_sale_time_slots`, `_list`, `_detail`, `_create`, `_set_status`, `_delete` | Dry-run default; hapus butuh `confirm` |
 
 ## Deploy ke Vercel
@@ -37,6 +38,7 @@ Variabel `KV_REST_API_URL` / `KV_REST_API_TOKEN` terisi otomatis. (Vercel tidak 
 | `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | Dari Shopee Open Platform Console |
 | `MCP_SECRET` | Acak ≥16 karakter, mis. `openssl rand -hex 24`. **Kunci akses ke seluruh toko Anda.** |
 | `SHOPEE_ENV` | `production` (atau `sandbox` untuk uji) |
+| `CRON_SECRET` | Sama dengan `MCP_SECRET` (agar Vercel Cron bisa memanggil worker) |
 | `SHOPEE_READ_ONLY` | `true` untuk audit saja (opsional) |
 
 Lalu **Redeploy**. Catat domain produksinya, mis. `https://shopee-agent.vercel.app`.
@@ -60,6 +62,44 @@ Ulangi untuk Kids dan Scarf (login ke akun toko masing-masing). Token berlaku 30
     --header "Authorization: Bearer <MCP_SECRET>"
   ```
 
+## Antrian edit massal
+
+Untuk ratusan produk, Claude memasukkan perubahan ke **antrian** (disimpan di Redis) lalu worker di Vercel memprosesnya
+sedikit demi sedikit. Anda tidak perlu menunggu di chat, dan batas waktu fungsi Vercel tidak jadi masalah.
+
+```
+Claude ──queue_enqueue (≤100/panggilan, berulang)──▶ job DRAFT
+Claude ──queue_control start (setelah Anda setuju)──▶ job QUEUED
+Worker /api/worker/run: proses ~38 dtk (~75-90 produk) ─▶ memicu dirinya sendiri ─▶ ... ─▶ COMPLETED
+Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
+```
+
+**Contoh:** "Tulis ulang judul semua 500 produk kebaya, antrekan, jangan jalan dulu." → Anda cek sampel → "Oke, jalankan." →
+"Bagaimana progresnya?" → "Ada yang gagal? Coba ulang." → "Kembalikan semuanya" (rollback).
+
+| Aksi `queue_control` | Fungsi |
+|---|---|
+| `start` / `resume` | Mulai job draft / lanjutkan job yang dijeda |
+| `pause` / `cancel` | Jeda / batalkan sisa (yang sudah terubah tetap) |
+| `retry_failed` | Antrekan ulang produk yang gagal |
+| `rollback` | Buat job baru yang memulihkan nama/deskripsi asli semua produk yang sudah berubah |
+
+**Perilaku yang sudah dijaga:**
+- **Berurutan & aman bersamaan:** satu worker per job (lock), job diproses sesuai urutan dibuat, rate limit dihormati.
+- **Nilai asli disimpan sebelum menulis**, sehingga rollback tetap benar walau worker mati di tengah jalan (sudah dites).
+- **Error sementara** (server sibuk, timeout, rate limit) dicoba ulang sampai 3 kali; **error permanen** (mis. data ditolak) langsung ditandai gagal dengan alasan, dan produk lain tetap lanjut.
+- **Circuit breaker:** 5 gagal berturut-turut atau masalah otorisasi/izin → job **dijeda otomatis** dengan alasan, bukan menghajar API terus. Perbaiki masalahnya, lalu `resume`.
+- Produk yang isinya sudah sama dilewati tanpa panggilan API. Produk yang sama dimasukkan dua kali → versi terakhir yang dipakai.
+- Pause/cancel dari Claude langsung dihormati worker.
+
+**Penggerak worker (tiga lapis):**
+1. **Berantai otomatis** — setiap `start`/`resume` memicu worker; worker memicu dirinya lagi sampai antrian habis.
+2. **Vercel Cron** (`vercel.json`) — jaring pengaman, melanjutkan antrian yang macet. Plan Hobby hanya boleh 1x/hari; plan Pro bisa tiap menit (ubah `schedule` jadi `* * * * *`).
+   Agar cron lolos autentikasi, set env **`CRON_SECRET` = nilai yang sama dengan `MCP_SECRET`**.
+3. **`queue_run`** — Claude menjalankan worker manual ~30 dtk dari chat bila (1) dan (2) tidak berjalan.
+
+> ⚠️ Jangan aktifkan *Vercel Authentication / Deployment Protection* pada domain produksi: worker memanggil dirinya sendiri lewat HTTP dan akan diblokir.
+
 ## Contoh percakapan
 
 - "Daftar toko Shopee yang terhubung."
@@ -69,7 +109,7 @@ Ulangi untuk Kids dan Scarf (login ke akun toko masing-masing). Token berlaku 30
 - "Kembalikan perubahan tadi." → `rollback_changes`.
 - "Buat flash sale slot besok jam 12:00 untuk produk X harga 79rb, limit 2 per pembeli."
 
-Untuk ratusan produk Claude akan memproses per batch (≤40 produk per panggilan karena batas waktu fungsi Vercel).
+Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
 
 ## Keamanan
 
@@ -85,7 +125,8 @@ Untuk ratusan produk Claude akan memproses per batch (≤40 produk per panggilan
 - Endpoint & nama field ditulis dari dokumentasi Shopee Open Platform v2 tetapi **belum diuji ke toko nyata**
   (butuh kredensial). Uji dulu dengan `SHOPEE_ENV=sandbox` atau 1-2 produk. Modul flash sale paling perlu diverifikasi.
 - Akses API produk/flash sale tergantung izin (permission) app Anda di Shopee Open Platform.
-- Plan Hobby Vercel membatasi fungsi hingga 60 dtk; cukup untuk batch 40 produk.
+- Kecepatan antrian ±75-90 produk/menit (batas rate limit Shopee + durasi fungsi); 500 produk ≈ 6 menit.
+- Plan Hobby Vercel membatasi fungsi hingga 60 dtk; worker dirancang muat di dalamnya.
 - Akun utama (*main account*) Shopee belum didukung; otorisasi dilakukan per toko.
 
 ## Pengembangan lokal
@@ -94,7 +135,7 @@ Untuk ratusan produk Claude akan memproses per batch (≤40 produk per panggilan
 npm install
 cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
 npm run dev                     # http://localhost:3000/api/mcp?key=...
-npm test                        # 15 tes: signing, SEO, auth, alur bulk/backup/rollback/refresh
+npm test                        # 35 tes: signing, SEO, auth, bulk, antrian (retry/pause/cancel/crash/rollback)
 npm run typecheck
 ```
 
@@ -107,6 +148,8 @@ src/app/api/[transport]/route.ts   endpoint MCP (/api/mcp), auth rahasia
 src/app/api/shopee/connect         mulai otorisasi toko
 src/app/api/shopee/callback        Redirect URL Shopee, simpan token
 src/lib/shopee.ts                  signing HMAC, OAuth, auto-refresh token
+src/app/api/worker/run             worker antrian (self-chaining + cron)
+src/lib/queue.ts                   antrian: enqueue, kontrol, worker, rollback
 src/lib/tools.ts                   definisi tool untuk Claude
 src/lib/{products,bulk,seo,flashSale}.ts
 src/lib/store.ts                   Upstash Redis (prod) / file (lokal)

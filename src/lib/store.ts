@@ -9,6 +9,8 @@ import { Redis } from "@upstash/redis";
 export interface Store {
   hget<T>(hash: string, field: string): Promise<T | null>;
   hset(hash: string, field: string, value: unknown): Promise<void>;
+  /** Tulis banyak field sekaligus (satu request). */
+  hsetMany(hash: string, entries: Record<string, unknown>): Promise<void>;
   hgetall<T>(hash: string): Promise<Record<string, T>>;
   /** Kunci sementara untuk mencegah dua refresh token bersamaan. */
   lock(key: string, ttlSeconds: number): Promise<boolean>;
@@ -22,6 +24,9 @@ class RedisStore implements Store {
   }
   async hset(hash: string, field: string, value: unknown) {
     await this.r.hset(hash, { [field]: value as never });
+  }
+  async hsetMany(hash: string, entries: Record<string, unknown>) {
+    if (Object.keys(entries).length) await this.r.hset(hash, entries as never);
   }
   async hgetall<T>(hash: string) {
     return ((await this.r.hgetall(hash)) as Record<string, T> | null) ?? {};
@@ -53,6 +58,11 @@ class FileStore implements Store {
   async hset(hash: string, field: string, value: unknown) {
     const d = await this.read();
     (d[hash] ??= {})[field] = value;
+    await this.write(d);
+  }
+  async hsetMany(hash: string, entries: Record<string, unknown>) {
+    const d = await this.read();
+    Object.assign((d[hash] ??= {}), entries);
     await this.write(d);
   }
   async hgetall<T>(hash: string) {
@@ -89,4 +99,7 @@ export function setStoreForTests(s: Store | null) {
 export const KEYS = {
   tokens: "shopee:tokens",
   backups: "shopee:backups",
+  jobs: "shopee:jobs", // id -> JobMeta
+  progress: "shopee:jobprogress", // id -> Progress
+  items: (id: string) => `shopee:jobitems:${id}`, // item_id -> JobItem
 } as const;

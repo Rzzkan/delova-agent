@@ -8,6 +8,7 @@ class MemStore implements Store {
   d: Record<string, Record<string, any>> = {};
   async hget<T>(h: string, f: string) { return (this.d[h]?.[f] as T) ?? null; }
   async hset(h: string, f: string, v: unknown) { (this.d[h] ??= {})[f] = JSON.parse(JSON.stringify(v)); }
+  async hsetMany(h: string, e: Record<string, unknown>) { for (const [k, v] of Object.entries(e)) await this.hset(h, k, v); }
   async hgetall<T>(h: string) { return (this.d[h] ?? {}) as Record<string, T>; }
   async lock() { return true; }
   async unlock() {}

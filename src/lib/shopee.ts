@@ -34,6 +34,9 @@ export function makeSign(
   return createHmac("sha256", partnerKey).update(`${partnerId}${path}${ts}${accessToken}${shopId}`).digest("hex");
 }
 
+/** Dapat diubah di tes. */
+export const rateLimit = { gapMs: 250 };
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class ShopeeClient {
@@ -141,7 +144,7 @@ export class ShopeeClient {
     o: { params?: Record<string, unknown>; body?: unknown; shop?: { token: string; id: number } } = {},
   ): Promise<Record<string, any>> {
     requireCredentials(this.cfg);
-    const gap = 250 - (Date.now() - this.lastCall); // hormati rate limit
+    const gap = rateLimit.gapMs - (Date.now() - this.lastCall); // hormati rate limit
     if (gap > 0) await sleep(gap);
     const ts = Math.floor(Date.now() / 1000);
     const q = new URLSearchParams({ partner_id: String(this.cfg.partnerId), timestamp: String(ts) });

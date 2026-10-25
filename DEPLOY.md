@@ -1,4 +1,4 @@
-# Panduan Deploy Shopee Agent ke Vercel
+# Panduan Deploy Delova Agent ke Vercel
 
 Perkiraan waktu: 30-45 menit (sebagian besar menunggu persetujuan/akses di sisi Shopee).
 Nama menu di Vercel/Shopee kadang berubah; ikuti maknanya bila labelnya sedikit berbeda.
@@ -17,20 +17,20 @@ Nama menu di Vercel/Shopee kadang berubah; ikuti maknanya bila labelnya sedikit 
 Di PowerShell, masuk ke folder proyek:
 
 ```powershell
-cd "C:\Users\Aditya Nur Riskan N\Delova\Delova Wardrobe\Shopee Agent"
+cd "C:\Users\Aditya Nur Riskan N\Delova\Delova Wardrobe\Delova Agent"
 git add -A
 git commit -m "Siap deploy: antrian, panduan deploy"
 ```
 
-Buat repo **privat** di <https://github.com/new> bernama `shopee-agent` (kosong: jangan centang README/.gitignore), lalu:
+Buat repo **privat** di <https://github.com/new> bernama `delova-agent` (kosong: jangan centang README/.gitignore), lalu:
 
 ```powershell
-git remote add origin https://github.com/Rzzkan/shopee-agent.git
+git remote add origin https://github.com/Rzzkan/delova-agent.git
 git branch -M main
 git push -u origin main
 ```
 
-Atau dengan GitHub CLI: `gh repo create shopee-agent --private --source=. --push`
+Atau dengan GitHub CLI: `gh repo create delova-agent --private --source=. --push`
 
 **Cek:** file `.env` tidak ada di repo (hanya `.env.example`).
 
@@ -44,7 +44,7 @@ Hasilnya 48 karakter acak. **Simpan di password manager.** Kunci ini dipakai seb
 
 ## Tahap 3. Import ke Vercel
 
-1. Buka <https://vercel.com/new> → **Import Git Repository** → pilih `shopee-agent`.
+1. Buka <https://vercel.com/new> → **Import Git Repository** → pilih `delova-agent`.
 2. Biarkan Framework = **Next.js**, Root Directory = kosong/default.
 3. Buka bagian **Environment Variables** dan isi:
 
@@ -57,7 +57,7 @@ Hasilnya 48 karakter acak. **Simpan di password manager.** Kunci ini dipakai seb
 | `SHOPEE_PARTNER_ID` | isi nanti di Tahap 5 (boleh kosong dulu) |
 | `SHOPEE_PARTNER_KEY` | isi nanti di Tahap 5 |
 
-4. Klik **Deploy**. Tunggu sampai selesai. Catat domain produksinya, mis. `https://shopee-agent.vercel.app`. Di panduan ini disebut `DOMAIN`.
+4. Klik **Deploy**. Tunggu sampai selesai. Catat domain produksinya, mis. `https://delova-agent.vercel.app`. Di panduan ini disebut `DOMAIN`.
 
 ## Tahap 4. Pasang Redis (wajib)
 
@@ -122,12 +122,12 @@ Token berlaku 30 hari dan diperbarui otomatis tiap dipakai. Jika sebuah toko tid
 ## Tahap 8. Tambahkan ke Claude
 
 **Claude.ai / aplikasi desktop:** Settings → Connectors → **Add custom connector**
-- Nama: `Shopee Agent`
+- Nama: `Delova Agent`
 - URL: `https://DOMAIN/api/mcp?key=KUNCI`
 
 **Claude Code:**
 ```powershell
-claude mcp add --transport http shopee-agent https://DOMAIN/api/mcp --header "Authorization: Bearer KUNCI"
+claude mcp add --transport http delova-agent https://DOMAIN/api/mcp --header "Authorization: Bearer KUNCI"
 ```
 
 ## Tahap 9. Uji bertahap sebelum edit massal

@@ -6,7 +6,7 @@
 # --- Varian A: Caddy di Docker dan container ini sudah satu network dengannya (docker-compose.proxy.yml) ---
 agent.delova.id {
 	encode zstd gzip
-	reverse_proxy delova-shopee-agent:3000 {
+	reverse_proxy delova-agent:3000 {
 		flush_interval -1
 	}
 }

@@ -1,18 +1,18 @@
-# Deploy Shopee Agent di VPS (Docker), berdampingan dengan aplikasi lain
+# Deploy Delova Agent di VPS (Docker), berdampingan dengan aplikasi lain
 
 Panduan untuk VPS yang sudah menjalankan **delova.id** (toko), **wh.delova.id** (gudang, MySQL), dan **threads.delova.id** (Threads Hub, `127.0.0.1:3100`), dengan Caddy memegang port 80/443.
-Shopee Agent (Shopee + TikTok Shop) ditambahkan sebagai **project Docker terpisah** yang tidak menyentuh milik aplikasi lain.
+Delova Agent (Shopee + TikTok Shop) ditambahkan sebagai **project Docker terpisah** yang tidak menyentuh milik aplikasi lain.
 
 ## 1. Apa yang berjalan, dan mengapa tidak bentrok
 
-| Hal | Nilai Shopee Agent | Mengapa aman |
+| Hal | Nilai Delova Agent | Mengapa aman |
 |---|---|---|
-| Project compose | `delova-shopee-agent` | Nama project unik; network & volume otomatis berawalan ini |
-| Container | `delova-shopee-agent`, `delova-shopee-agent-redis` | Nama unik; `preflight.sh` memeriksa pemakaian ganda |
+| Project compose | `delova-agent` | Nama project unik; network & volume otomatis berawalan ini |
+| Container | `delova-agent`, `delova-agent-redis` | Nama unik; `preflight.sh` memeriksa pemakaian ganda |
 | Port host | `127.0.0.1:3210` (ubah dengan `AGENT_PORT`) | Hanya loopback, tidak terjangkau internet; beda dari Threads Hub (3100). **Tidak** memakai 80/443 |
-| Redis | Container sendiri, network `delova-shopee-agent_internal` (`internal: true`) | Tidak ada port terbuka, tidak terlihat aplikasi lain, tidak bentrok dengan Redis/MySQL lain |
-| Volume | `delova-shopee-agent_redis-data` | Satu-satunya data: token toko & antrian |
-| Alias di network proxy | `delova-shopee-agent` | Hanya service aplikasi yang disambung ke network proxy, dengan alias unik; Redis tidak ikut |
+| Redis | Container sendiri, network `delova-agent_internal` (`internal: true`) | Tidak ada port terbuka, tidak terlihat aplikasi lain, tidak bentrok dengan Redis/MySQL lain |
+| Volume | `delova-agent_redis-data` | Satu-satunya data: token toko & antrian |
+| Alias di network proxy | `delova-agent` | Hanya service aplikasi yang disambung ke network proxy, dengan alias unik; Redis tidak ikut |
 | Sumber daya | app 384 MB / 0,5 CPU, Redis 192 MB / 0,25 CPU | Tidak mengganggu aplikasi lain |
 | Subdomain | `agent.delova.id` (contoh) | Satu blok baru di Caddy; blok lain tidak diubah |
 
@@ -27,7 +27,7 @@ Shopee Agent (Shopee + TikTok Shop) ditambahkan sebagai **project Docker terpisa
 
 ```bash
 # 1. Taruh kode di VPS (contoh: git clone dari repo Anda, atau scp)
-cd ~/apps && git clone <URL-REPO> shopee-agent && cd shopee-agent
+cd ~/apps && git clone <URL-REPO> delova-agent && cd delova-agent
 
 # 2. Isi konfigurasi
 cp .env.example .env
@@ -66,7 +66,7 @@ Lihat juga bagaimana Threads Hub tersambung (blok `threads.delova.id` di Caddyfi
    COMPOSE_FILE=docker-compose.yml:docker-compose.proxy.yml
    ```
 2. `bash deploy/preflight.sh && docker compose up -d`
-3. Tambahkan blok dari `deploy/Caddyfile.snippet` (Varian A, `reverse_proxy delova-shopee-agent:3000`) ke Caddyfile, lalu:
+3. Tambahkan blok dari `deploy/Caddyfile.snippet` (Varian A, `reverse_proxy delova-agent:3000`) ke Caddyfile, lalu:
    ```bash
    docker exec <nama-caddy> caddy validate --config /etc/caddy/Caddyfile
    docker exec <nama-caddy> caddy reload   --config /etc/caddy/Caddyfile
@@ -84,7 +84,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://agent.delova.id/api/mcp   # 401
 ```
 
 Buka `https://agent.delova.id/dashboard`, masuk dengan `MCP_SECRET`, klik **+ Hubungkan Shopee** / **+ Hubungkan TikTok Shop** untuk tiap toko, lalu tambahkan connector di Claude:
-`https://agent.delova.id/api/mcp?key=<MCP_SECRET>` (Claude Code: `claude mcp add --transport http shopee-agent https://agent.delova.id/api/mcp --header "Authorization: Bearer <MCP_SECRET>"`).
+`https://agent.delova.id/api/mcp?key=<MCP_SECRET>` (Claude Code: `claude mcp add --transport http delova-agent https://agent.delova.id/api/mcp --header "Authorization: Bearer <MCP_SECRET>"`).
 
 > Dashboard memakai cookie `Secure`, jadi login hanya berfungsi lewat **https** (domain). Untuk akses darurat tanpa domain: `ssh -L 3210:127.0.0.1:3210 user@vps` lalu buka `http://localhost:3210/dashboard` (localhost dianggap aman oleh browser).
 
@@ -95,7 +95,7 @@ Tidak ada Vercel Cron di VPS. Penggantinya sudah tertanam: tiap 60 detik (`WORKE
 ## 7. Operasional
 
 ```bash
-docker compose logs -f --tail 100 delova-shopee-agent    # log aplikasi
+docker compose logs -f --tail 100 delova-agent    # log aplikasi
 docker compose restart                                   # restart (data aman)
 git pull && docker compose up -d --build                 # update versi
 docker compose down                                      # hentikan (data tetap ada di volume)
@@ -105,13 +105,13 @@ docker compose down -v                                   # HAPUS data (token tok
 **Backup** (token toko ada di sini; simpan di tempat aman, jangan commit):
 
 ```bash
-docker run --rm -v delova-shopee-agent_redis-data:/data -v "$PWD":/backup alpine \
-  tar czf /backup/shopee-agent-redis-$(date +%F).tgz -C /data .
+docker run --rm -v delova-agent_redis-data:/data -v "$PWD":/backup alpine \
+  tar czf /backup/delova-agent-redis-$(date +%F).tgz -C /data .
 ```
 
 Pulihkan: hentikan stack, `tar xzf` ke volume dengan perintah serupa, lalu `docker compose up -d`. Bila backup hilang, cukup hubungkan ulang toko dari dashboard.
 
-**Rollback versi:** sebelum update, `docker tag delova/shopee-agent:local delova/shopee-agent:prev`; bila bermasalah, ubah `image:` ke `:prev` lalu `docker compose up -d --no-build`.
+**Rollback versi:** sebelum update, `docker tag delova/agent:local delova/agent:prev`; bila bermasalah, ubah `image:` ke `:prev` lalu `docker compose up -d --no-build`.
 
 ## 8. Keamanan
 
@@ -131,6 +131,6 @@ Pulihkan: hentikan stack, `tar xzf` ke volume dengan perintah serupa, lalu `dock
 | `PROXY_NETWORK` error saat `compose up` | Nilai kosong/salah. Cek `docker network ls`; pastikan Caddy memakai network itu |
 | Build mati / "Killed" | Kehabisan RAM. `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`, build lagi, lalu `sudo swapoff /swapfile` bila perlu |
 | Login dashboard tidak mau masuk lewat `http://IP:3210` | Cookie `Secure` butuh https. Pakai domain, atau SSH tunnel (lihat bagian 5) |
-| Job `queued` tapi diam | `docker compose logs delova-shopee-agent`; pastikan `WORKER_INTERVAL_SECONDS` tidak dihapus dan `MCP_SECRET` ≥16 karakter; atau minta Claude memanggil `queue_run` |
+| Job `queued` tapi diam | `docker compose logs delova-agent`; pastikan `WORKER_INTERVAL_SECONDS` tidak dihapus dan `MCP_SECRET` ≥16 karakter; atau minta Claude memanggil `queue_run` |
 | "TikTok Shop belum dikonfigurasi" | Env `TIKTOK_*` kosong; isi lalu `docker compose up -d` |
 | Redirect Shopee/TikTok ditolak | Redirect URL di konsol harus persis `https://<domain>/api/shopee/callback` / `/api/tiktok/callback`, dan `APP_BASE_URL` harus domain yang sama |

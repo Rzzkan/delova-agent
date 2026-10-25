@@ -182,7 +182,7 @@ export default function DashboardClient() {
   if (!authed) {
     return (
       <form className="login card" onSubmit={login}>
-        <h1>Shopee Agent</h1>
+        <h1>Delova Agent</h1>
         <p>Masukkan kunci akses (MCP_SECRET) untuk membuka dashboard.</p>
         <input type="password" autoFocus autoComplete="current-password" placeholder="Kunci akses" value={key} onChange={(e) => setKey(e.target.value)} />
         <div className="err">{loginErr}</div>
@@ -198,7 +198,7 @@ export default function DashboardClient() {
   return (
     <div className="wrap">
       <div className="top">
-        <h1>Shopee Agent</h1>
+        <h1>Delova Agent</h1>
         <span className={`badge`}>{d.server.env === "production" ? "Production" : "Sandbox"}</span>
         {d.server.read_only && <span className="pill warn">Mode baca-saja</span>}
         <span className={`pill ${storeBad ? "bad" : d.server.store === "file" ? "warn" : "mute"}`} title="Penyimpanan token & antrian">

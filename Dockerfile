@@ -1,4 +1,4 @@
-# Shopee Agent (Shopee + TikTok Shop) - image produksi, multi-stage.
+# Delova Agent (Shopee + TikTok Shop) - image produksi, multi-stage.
 # Build butuh ~1 GB RAM bebas (next build). Image akhir hanya berisi output "standalone".
 FROM node:22-slim AS deps
 WORKDIR /app

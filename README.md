@@ -1,4 +1,4 @@
-# Shopee Agent
+# Delova Agent
 
 Server **MCP** yang berjalan di **Vercel** supaya **chat Claude** menjadi antarmuka utama untuk mengelola toko Shopee
 (Delova Wardrobe, Kids, Scarf) lewat Shopee Open Platform API v2: audit SEO, ubah nama & deskripsi produk massal, dan atur flash sale.

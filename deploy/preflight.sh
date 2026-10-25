@@ -25,7 +25,7 @@ perm=$(stat -c %a .env 2>/dev/null || echo "?")
 [ "$perm" = "600" ] || warn ".env berizin $perm; disarankan: chmod 600 .env"
 
 # 2. port host
-own=$(docker ps --filter name=^delova-shopee-agent$ --format '{{.Ports}}' | grep -c "127.0.0.1:$PORT->" || true)
+own=$(docker ps --filter name=^delova-agent$ --format '{{.Ports}}' | grep -c "127.0.0.1:$PORT->" || true)
 inuse=0
 if command -v ss >/dev/null; then
   ss -ltnH "sport = :$PORT" 2>/dev/null | grep -q . && inuse=1
@@ -35,21 +35,21 @@ if [ "$inuse" -eq 1 ]; then
 else ok "port 127.0.0.1:$PORT bebas"; fi
 
 # 3. nama container
-for n in delova-shopee-agent delova-shopee-agent-redis; do
+for n in delova-agent delova-agent-redis; do
   if docker ps -a --format '{{.Names}}' | grep -qx "$n"; then
     proj=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$n" 2>/dev/null)
-    [ "$proj" = "delova-shopee-agent" ] && ok "container $n milik project ini (update)" || bad "nama container $n sudah dipakai project lain ($proj)"
+    [ "$proj" = "delova-agent" ] && ok "container $n milik project ini (update)" || bad "nama container $n sudah dipakai project lain ($proj)"
   else ok "nama container $n bebas"; fi
 done
 
 # 4. volume & network
-docker volume ls -q | grep -qx "delova-shopee-agent_redis-data" && ok "volume redis-data sudah ada (data lama dipakai ulang)" || ok "volume baru akan dibuat: delova-shopee-agent_redis-data"
+docker volume ls -q | grep -qx "delova-agent_redis-data" && ok "volume redis-data sudah ada (data lama dipakai ulang)" || ok "volume baru akan dibuat: delova-agent_redis-data"
 if [ -n "$PROXYNET" ]; then
   docker network ls --format '{{.Name}}' | grep -qx "$PROXYNET" && ok "network proxy '$PROXYNET' ada" || bad "network proxy '$PROXYNET' tidak ditemukan (docker network ls)"
   # alias tabrakan di network proxy?
   if docker network inspect "$PROXYNET" >/dev/null 2>&1; then
-    clash=$(docker network inspect "$PROXYNET" -f '{{range .Containers}}{{.Name}} {{end}}' | tr ' ' '\n' | grep -vx 'delova-shopee-agent' | grep -x 'delova-shopee-agent' || true)
-    [ -z "$clash" ] && ok "alias delova-shopee-agent bebas di network $PROXYNET"
+    clash=$(docker network inspect "$PROXYNET" -f '{{range .Containers}}{{.Name}} {{end}}' | tr ' ' '\n' | grep -vx 'delova-agent' | grep -x 'delova-agent' || true)
+    [ -z "$clash" ] && ok "alias delova-agent bebas di network $PROXYNET"
   fi
 else
   warn "PROXY_NETWORK kosong: mode host-port (proxy di host). Bila Caddy berjalan di Docker, isi PROXY_NETWORK + COMPOSE_FILE (lihat DEPLOY-VPS.md)"
@@ -57,7 +57,7 @@ fi
 
 # 5. domain/port lain yang sedang berjalan (info)
 echo; echo "Container lain yang sedang berjalan (pastikan tidak ada yang memakai port $PORT):"
-docker ps --format '  {{.Names}}\t{{.Ports}}' | grep -v 'delova-shopee-agent' || true
+docker ps --format '  {{.Names}}\t{{.Ports}}' | grep -v 'delova-agent' || true
 
 # 6. memori
 if [ -r /proc/meminfo ]; then

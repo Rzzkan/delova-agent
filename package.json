@@ -2,7 +2,7 @@
   "name": "delova-agent",
   "version": "0.3.0",
   "private": true,
-  "description": "MCP server (Vercel) agar Claude bisa mengelola toko Shopee: produk, SEO massal, flash sale",
+  "description": "MCP server (Docker/VPS) agar Claude bisa mengelola toko Shopee: produk, SEO massal, flash sale",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

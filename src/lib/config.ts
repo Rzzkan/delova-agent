@@ -1,4 +1,4 @@
-/** Konfigurasi dari environment variables (Vercel > Settings > Environment Variables). */
+/** Konfigurasi dari environment variables (file .env di VPS, lihat .env.example). */
 
 export const HOSTS = {
   production: "https://partner.shopeemobile.com",
@@ -22,13 +22,12 @@ export function loadConfig(): Config {
   if (env !== "production" && env !== "sandbox") {
     throw new Error("SHOPEE_ENV harus 'production' atau 'sandbox'");
   }
-  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   return {
     partnerId: Number(process.env.SHOPEE_PARTNER_ID ?? 0),
     partnerKey: process.env.SHOPEE_PARTNER_KEY ?? "",
     env,
     host: HOSTS[env],
-    baseUrl: (process.env.APP_BASE_URL ?? (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000")).replace(/\/$/, ""),
+    baseUrl: (process.env.APP_BASE_URL ?? "http://localhost:3000").replace(/\/$/, ""),
     workerBaseUrl: process.env.WORKER_BASE_URL?.replace(/\/$/, "") || undefined,
     readOnly: (process.env.SHOPEE_READ_ONLY ?? "false").toLowerCase() === "true",
     mcpSecret: process.env.MCP_SECRET ?? "",

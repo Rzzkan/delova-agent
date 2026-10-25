@@ -1,6 +1,6 @@
 /**
- * Penyimpanan persisten (token Shopee, backup). Vercel serverless tidak punya disk tetap,
- * jadi dipakai Upstash Redis (Vercel Marketplace). Tanpa Redis (dev lokal) dipakai file JSON.
+ * Penyimpanan persisten (token Shopee, backup). dipakai Redis (REDIS_URL di Docker, atau Upstash REST).
+ * Tanpa Redis (dev lokal) dipakai file JSON.
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -116,10 +116,8 @@ export function getStore(): Store {
     instance = new RedisStore(new Redis({ url, token }));
   } else if (process.env.REDIS_URL) {
     instance = createTcpRedisStore(process.env.REDIS_URL);
-  } else if (process.env.VERCEL) {
-    throw new Error(
-      "Redis belum terpasang. Tambahkan integrasi Upstash Redis di Vercel (Storage) lalu redeploy.",
-    );
+  } else if (process.env.NODE_ENV === "production") {
+    throw new Error("Redis belum terpasang. Isi REDIS_URL di .env lalu jalankan ulang container.");
   } else {
     instance = new FileStore();
   }

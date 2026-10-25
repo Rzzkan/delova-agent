@@ -2,8 +2,8 @@
  * Antrian edit massal (nama/deskripsi produk).
  *
  * Alur: queue_enqueue (draft, bisa ditambah bertahap) -> start -> worker memproses per "slice"
- * (~38 dtk, muat dalam batas fungsi Vercel) -> worker memicu dirinya sendiri sampai antrian habis.
- * Penggerak cadangan: Vercel Cron dan tool queue_run dari chat Claude.
+ * (~38 dtk, muat dalam satu request) -> worker memicu dirinya sendiri sampai antrian habis.
+ * Penggerak cadangan: penjadwal internal (WORKER_INTERVAL_SECONDS) dan tool queue_run dari chat Claude.
  *
  * Konsistensi: status kontrol (draft/queued/paused/cancelled) hanya ditulis oleh pengguna/tool,
  * progres hanya ditulis oleh worker yang memegang lock job. Dengan begitu pause/cancel tidak

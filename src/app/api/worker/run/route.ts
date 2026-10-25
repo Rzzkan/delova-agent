@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 /**
  * Worker antrian. Membalas 202 segera, lalu bekerja di belakang (after) selama ~38 dtk,
  * dan memicu dirinya sendiri lagi bila antrian belum habis.
- * Pemanggil: dirinya sendiri (POST + Bearer), Vercel Cron (GET + Bearer CRON_SECRET = MCP_SECRET).
+ * Pemanggil: dirinya sendiri (POST + Bearer), penjadwal internal (Bearer MCP_SECRET).
  */
 async function run(req: Request): Promise<Response> {
   const cfg = loadConfig();

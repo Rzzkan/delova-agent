@@ -22,7 +22,7 @@ services:
       HOSTNAME: "0.0.0.0"
       REDIS_URL: redis://delova-agent-redis:6379
       WORKER_BASE_URL: http://127.0.0.1:3000 # worker memanggil dirinya sendiri di dalam container
-      WORKER_INTERVAL_SECONDS: "60" # jaring pengaman antrian (pengganti Vercel Cron)
+      WORKER_INTERVAL_SECONDS: "60" # jaring pengaman antrian 
     ports:
       - "127.0.0.1:${AGENT_PORT:-3210}:3000"
     depends_on:

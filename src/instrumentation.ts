@@ -1,5 +1,5 @@
 /**
- * Penjadwal worker untuk deploy Docker/VPS (di Vercel dipakai Vercel Cron).
+ * Penjadwal worker untuk deploy Docker/VPS .
  * Aktif bila WORKER_INTERVAL_SECONDS diisi (>0): tiap interval memanggil worker lokal sebagai jaring pengaman,
  * sehingga antrian yang macet (restart container, rantai terputus) tetap lanjut tanpa cron eksternal.
  */

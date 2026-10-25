@@ -259,7 +259,7 @@ export default function DashboardClient() {
             {d.server.tiktok_configured && <a className="btn primary" href="/api/tiktok/connect">+ Hubungkan TikTok Shop</a>}
           </div>
           <span className="meta" style={{ margin: 0 }}>
-            Login sebagai seller toko yang dituju{d.server.tiktok_configured ? "" : " · TikTok Shop belum dikonfigurasi (isi TIKTOK_APP_KEY dan kawan-kawan di Vercel)"}
+            Login sebagai seller toko yang dituju{d.server.tiktok_configured ? "" : " · TikTok Shop belum dikonfigurasi (isi TIKTOK_APP_KEY dan kawan-kawan di file .env server)"}
           </span>
         </div>
       </div>

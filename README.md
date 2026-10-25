@@ -1,11 +1,11 @@
 # Delova Agent
 
-Server **MCP** yang berjalan di **Vercel** supaya **chat Claude** menjadi antarmuka utama untuk mengelola toko Shopee
+Server **MCP** yang berjalan di **VPS (Docker)** supaya **chat Claude** menjadi antarmuka utama untuk mengelola toko Shopee
 (Delova Wardrobe, Kids, Scarf) lewat Shopee Open Platform API v2: audit SEO, ubah nama & deskripsi produk massal, dan atur flash sale.
 Mulai v0.3 juga mendukung **TikTok Shop** (Partner Center API): audit SEO, edit judul/deskripsi lewat antrian yang sama, dan promosi (diskon, harga tetap, flash sale).
 
 ```
-Claude (chat) ──MCP/HTTPS──▶ Vercel (Next.js, /api/mcp) ──▶ Shopee Open Platform API
+Claude (chat) ──MCP/HTTPS──▶ VPS (Next.js, /api/mcp) ──▶ Shopee Open Platform API
                                       │
                                       └── Upstash Redis (token toko + backup)
 ```
@@ -26,7 +26,7 @@ membuat backup, dan mengirimkannya dengan aman.
 
 ## Tool TikTok Shop
 
-Aktif bila `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` diisi (lihat DEPLOY.md, Tahap 5b). ID produk TikTok selalu **string** (melebihi batas angka JavaScript).
+Aktif bila `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` diisi (lihat DEPLOY-VPS.md, bagian TikTok Shop). ID produk TikTok selalu **string** (melebihi batas angka JavaScript).
 
 | Area | Tool | Keterangan |
 |---|---|---|
@@ -43,18 +43,10 @@ Aktif bila `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` diisi (lih
 
 Untuk VPS yang sudah menjalankan aplikasi lain: lihat **[DEPLOY-VPS.md](DEPLOY-VPS.md)** (compose terisolasi, Redis internal, `deploy/preflight.sh` untuk cek bentrok, snippet Caddy).
 
-## Deploy ke Vercel
-
-Panduan langkah demi langkah (GitHub → Vercel → Redis → Shopee → verifikasi → connector Claude → uji bertahap → troubleshooting) ada di **[DEPLOY.md](DEPLOY.md)**.
-
-Ringkasnya: push repo ke GitHub, import ke Vercel, pasang Upstash Redis, isi env (`MCP_SECRET`, `CRON_SECRET`, `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV`),
-set Redirect URL Shopee ke `https://<domain>/api/shopee/callback`, hubungkan tiap toko lewat `/api/shopee/connect?key=<MCP_SECRET>`, lalu tambahkan
-`https://<domain>/api/mcp?key=<MCP_SECRET>` sebagai custom connector di Claude (Claude Code: `claude mcp add --transport http ... --header "Authorization: Bearer <MCP_SECRET>"`).
-
 ## Antrian edit massal
 
-Untuk ratusan produk, Claude memasukkan perubahan ke **antrian** (disimpan di Redis) lalu worker di Vercel memprosesnya
-sedikit demi sedikit. Anda tidak perlu menunggu di chat, dan batas waktu fungsi Vercel tidak jadi masalah.
+Untuk ratusan produk, Claude memasukkan perubahan ke **antrian** (disimpan di Redis) lalu worker di server memprosesnya
+sedikit demi sedikit. Anda tidak perlu menunggu di chat.
 
 ```
 Claude ──queue_enqueue (≤100/panggilan, berulang)──▶ job DRAFT
@@ -83,11 +75,8 @@ Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
 
 **Penggerak worker (tiga lapis):**
 1. **Berantai otomatis** — setiap `start`/`resume` memicu worker; worker memicu dirinya lagi sampai antrian habis.
-2. **Vercel Cron** (`vercel.json`) — jaring pengaman, melanjutkan antrian yang macet. Plan Hobby hanya boleh 1x/hari; plan Pro bisa tiap menit (ubah `schedule` jadi `* * * * *`).
-   Agar cron lolos autentikasi, set env **`CRON_SECRET` = nilai yang sama dengan `MCP_SECRET`**.
+2. **Penjadwal internal** — tiap 60 detik (`WORKER_INTERVAL_SECONDS`) aplikasi memanggil worker-nya sendiri sebagai jaring pengaman, melanjutkan antrian yang macet.
 3. **`queue_run`** — Claude menjalankan worker manual ~30 dtk dari chat bila (1) dan (2) tidak berjalan.
-
-> ⚠️ Jangan aktifkan *Vercel Authentication / Deployment Protection* pada domain produksi: worker memanggil dirinya sendiri lewat HTTP dan akan diblokir.
 
 ## Dashboard
 
@@ -114,15 +103,13 @@ Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
   Untuk keamanan lebih tinggi, tambahkan OAuth penuh (pengembangan lanjutan).
 - Semua operasi tulis default **dry-run**; perubahan yang melanggar batas Shopee dilewati; backup otomatis sebelum menimpa; `SHOPEE_READ_ONLY=true` memblokir semua penulisan.
 - Token Shopee disimpan di Redis, bukan di repo. Jangan commit `.env`.
-- Aktifkan **Vercel Deployment Protection** hanya untuk preview; jangan untuk produksi, karena Claude perlu mengakses `/api/mcp`.
 
 ## Catatan penting
 
 - Endpoint & nama field ditulis dari dokumentasi Shopee Open Platform v2 tetapi **belum diuji ke toko nyata**
   (butuh kredensial). Uji dulu dengan `SHOPEE_ENV=sandbox` atau 1-2 produk. Modul flash sale paling perlu diverifikasi.
 - Akses API produk/flash sale tergantung izin (permission) app Anda di Shopee Open Platform.
-- Kecepatan antrian ±75-90 produk/menit (batas rate limit Shopee + durasi fungsi); 500 produk ≈ 6 menit.
-- Plan Hobby Vercel membatasi fungsi hingga 60 dtk; worker dirancang muat di dalamnya.
+- Kecepatan antrian ±75-90 produk/menit (batas rate limit Shopee); 500 produk ≈ 6 menit.
 - Akun utama (*main account*) Shopee belum didukung; otorisasi dilakukan per toko.
 
 ## Pengembangan lokal

@@ -74,7 +74,7 @@ export function registerTools(
   let ttClient: TikTokClient | null = null;
   const t = () => {
     if (!tiktokConfigured(loadTikTokConfig())) {
-      throw new Error("TikTok Shop belum dikonfigurasi di server: isi TIKTOK_APP_KEY, TIKTOK_APP_SECRET, TIKTOK_SERVICE_ID di Vercel lalu redeploy.");
+      throw new Error("TikTok Shop belum dikonfigurasi di server: isi TIKTOK_APP_KEY, TIKTOK_APP_SECRET, TIKTOK_SERVICE_ID di file .env lalu jalankan ulang container.");
     }
     return (ttClient ??= mkTikTok());
   };

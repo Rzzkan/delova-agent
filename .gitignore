@@ -3,7 +3,6 @@ node_modules/
 .env
 .env*.local
 .data/
-.vercel/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store

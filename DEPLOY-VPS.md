@@ -90,7 +90,7 @@ Buka `https://agent.delova.id/dashboard`, masuk dengan `MCP_SECRET`, klik **+ Hu
 
 ## 6. Antrian di VPS
 
-Tidak ada Vercel Cron di VPS. Penggantinya sudah tertanam: tiap 60 detik (`WORKER_INTERVAL_SECONDS`) aplikasi memanggil worker-nya sendiri sebagai jaring pengaman, di atas rantai otomatis setelah `start`/`resume`. Tidak ada batas 60 detik fungsi seperti di Vercel. Antrian yang sedang berjalan tetap lanjut setelah container di-restart (data ada di Redis).
+Penjadwal sudah tertanam di aplikasi: tiap 60 detik (`WORKER_INTERVAL_SECONDS`) aplikasi memanggil worker-nya sendiri sebagai jaring pengaman, di atas rantai otomatis setelah `start`/`resume`. Antrian yang sedang berjalan tetap lanjut setelah container di-restart (data ada di Redis).
 
 ## 7. Operasional
 
@@ -122,7 +122,30 @@ Pulihkan: hentikan stack, `tar xzf` ke volume dengan perintah serupa, lalu `dock
 - URL connector memuat `?key=`. Pastikan blok Caddy ini tidak mengaktifkan access log yang menyimpan query string, atau pakai header Bearer (Claude Code).
 - Redis hanya terjangkau dari container aplikasi (network `internal`), karena itu tanpa password. Bila Anda membuka akses lain ke network itu, tambahkan `--requirepass`.
 
-## 9. Masalah umum
+## 10. Siapkan app Shopee dan TikTok Shop
+
+**Shopee** (Open Platform console, app Anda):
+1. Salin **Partner ID** dan **Partner Key** (kunci *test* untuk `sandbox`, kunci *live* untuk `production`), isi `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY`, `SHOPEE_ENV` di `.env`.
+2. **Redirect URL** = `https://agent.delova.id/api/shopee/callback` (persis).
+3. Pastikan app punya izin modul **Product** dan **Flash Sale / Marketing**.
+4. Terapkan: `docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`, lalu di dashboard klik **+ Hubungkan Shopee** untuk tiap toko (login sebagai seller toko itu).
+
+**TikTok Shop** (opsional, lewati bila hanya Shopee):
+1. Daftar di **TikTok Shop Partner Center** (partner.tiktokshop.com), buat App seller/custom, minta scope *Product*, *Promotion*, dan *Shop*. Approval bisa memakan waktu.
+2. **Redirect URL** = `https://agent.delova.id/api/tiktok/callback`. Catat **App Key**, **App Secret**, **Service ID**.
+3. Isi `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` di `.env`, jalankan perintah `up -d` di atas, lalu klik **+ Hubungkan TikTok Shop** di dashboard.
+
+## 11. Uji bertahap sebelum edit massal
+
+1. **Baca saja** (`SHOPEE_READ_ONLY=true`): minta Claude "daftar toko terhubung", lalu "audit SEO halaman pertama produk".
+2. **Tulis 1-2 produk:** set `SHOPEE_READ_ONLY=false`, `up -d`, ubah judul 2 produk, cek di Seller Centre, lalu minta rollback.
+3. **Antrian kecil:** antrekan 5 produk, pantau dengan `queue_status`, coba rollback.
+4. **Flash sale / promosi TikTok:** coba satu produk dulu; endpoint-nya belum diverifikasi ke API asli.
+5. Baru edit massal ratusan produk.
+
+Bila tadinya memakai `sandbox`: ganti `SHOPEE_ENV=production`, pakai kunci live, **hubungkan ulang** tiap toko (token sandbox tidak berlaku di production).
+
+## 12. Masalah umum
 
 | Gejala | Penyebab / solusi |
 |---|---|

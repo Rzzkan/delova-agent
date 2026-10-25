@@ -103,3 +103,12 @@ export const KEYS = {
   progress: "shopee:jobprogress", // id -> Progress
   items: (id: string) => `shopee:jobitems:${id}`, // item_id -> JobItem
 } as const;
+
+/** Jenis penyimpanan aktif, untuk ditampilkan di dashboard. */
+export function storeKind(): "redis" | "file" | "belum dipasang" {
+  try {
+    return getStore() instanceof RedisStore ? "redis" : "file";
+  } catch {
+    return "belum dipasang";
+  }
+}

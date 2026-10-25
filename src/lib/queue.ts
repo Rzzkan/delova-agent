@@ -251,6 +251,7 @@ export async function listJobs(limit = 15) {
     out.push({
       job_id: m.id, label: m.label, kind: m.kind, shop_id: m.shop_id, status: displayStatus(m, p),
       total: p.total, ok: p.ok, failed: p.failed, pending: p.pending.length, created_at: m.created_at,
+      pause_reason: m.pause_reason,
     });
   }
   return out;

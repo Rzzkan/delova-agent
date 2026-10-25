@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
-import { isAuthorized, oauthState } from "@/lib/auth";
+import { oauthState } from "@/lib/auth";
 import { loadConfig } from "@/lib/config";
+import { isAuthed } from "@/lib/dashboard";
 import { ShopeeClient } from "@/lib/shopee";
 
 export const dynamic = "force-dynamic";
 
-/** Buka /api/shopee/connect?key=MCP_SECRET di browser, login sebagai seller, lalu izinkan. Ulangi per toko. */
+/** Buka dari dashboard (sudah login) atau /api/shopee/connect?key=MCP_SECRET; login sebagai seller lalu izinkan. Ulangi per toko. */
 export async function GET(req: Request) {
   const cfg = loadConfig();
-  if (!isAuthorized(req, cfg.mcpSecret)) return new NextResponse("unauthorized", { status: 401 });
+  if (!isAuthed(req, cfg.mcpSecret)) return new NextResponse("unauthorized", { status: 401 });
   try {
     return NextResponse.redirect(new ShopeeClient(cfg).authUrl(oauthState(cfg.mcpSecret)));
   } catch (e) {

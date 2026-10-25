@@ -69,6 +69,13 @@ Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
 
 > ⚠️ Jangan aktifkan *Vercel Authentication / Deployment Protection* pada domain produksi: worker memanggil dirinya sendiri lewat HTTP dan akan diblokir.
 
+## Dashboard
+
+Buka `https://<domain>/dashboard` dan masuk dengan `MCP_SECRET`. Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
+(30 hari sejak token diperbarui, diperpanjang otomatis saat toko dipakai), tombol hubungkan/hubungkan ulang toko, serta progres job antrian
+secara langsung (berhasil/gagal/menunggu, ETA, alasan jeda, daftar gagal) dengan kontrol mulai, jeda, lanjutkan, batalkan, coba ulang, rollback, dan jalankan worker.
+Panel flash sale belum ada di dashboard; gunakan chat Claude.
+
 ## Contoh percakapan
 
 - "Daftar toko Shopee yang terhubung."
@@ -104,7 +111,7 @@ Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
 npm install
 cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
 npm run dev                     # http://localhost:3000/api/mcp?key=...
-npm test                        # 35 tes: signing, SEO, auth, bulk, antrian (retry/pause/cancel/crash/rollback)
+npm test                        # 47 tes: signing, SEO, auth, bulk, antrian, dashboard
 npm run typecheck
 ```
 
@@ -114,6 +121,8 @@ Uji tanpa Claude (MCP Inspector): `npx @modelcontextprotocol/inspector` → Stre
 
 ```
 src/app/api/[transport]/route.ts   endpoint MCP (/api/mcp), auth rahasia
+src/app/dashboard + api/dashboard/*   dashboard (login cookie, data, aksi)
+src/lib/dashboard.ts               ringkasan toko/job, status kedaluwarsa
 src/app/api/shopee/connect         mulai otorisasi toko
 src/app/api/shopee/callback        Redirect URL Shopee, simpan token
 src/lib/shopee.ts                  signing HMAC, OAuth, auto-refresh token

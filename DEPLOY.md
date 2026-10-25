@@ -101,6 +101,15 @@ Untuk **setiap** toko (Wardrobe, Kids, Scarf):
 
 Token berlaku 30 hari dan diperbarui otomatis tiap dipakai. Jika sebuah toko tidak dipakai lebih dari 30 hari, hubungkan ulang.
 
+**Cara lebih mudah:** buka `https://DOMAIN/dashboard`, masuk dengan `MCP_SECRET`, lalu klik **+ Hubungkan toko** (atau **Hubungkan ulang** pada toko yang hampir kedaluwarsa).
+
+### Dashboard
+
+`https://DOMAIN/dashboard` menampilkan:
+- **Toko terhubung** beserta tanggal berakhirnya izin akses. Tanggal ini *perkiraan*: 30 hari sejak token terakhir diperbarui, dan otomatis diperpanjang tiap toko dipakai. Toko yang tersambung sebelum fitur ini muncul sebagai "Belum diketahui" sampai dipakai sekali lagi. Status: Aktif, Segera berakhir (<5 hari), Kedaluwarsa.
+- **Antrian edit massal**: progres, jumlah berhasil/gagal/menunggu, estimasi waktu, alasan jeda, daftar produk gagal, serta tombol Mulai, Jeda, Lanjutkan, Batalkan, Coba ulang yang gagal, Rollback, dan Jalankan worker sekarang.
+- Masuk memakai `MCP_SECRET` (cookie HttpOnly, berlaku 7 hari). Mengganti `MCP_SECRET` otomatis mengeluarkan semua sesi. Token Shopee tidak pernah dikirim ke browser.
+
 ## Tahap 8. Tambahkan ke Claude
 
 **Claude.ai / aplikasi desktop:** Settings → Connectors → **Add custom connector**

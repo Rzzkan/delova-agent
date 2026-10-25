@@ -19,8 +19,14 @@ export interface TokenRecord {
   shop_name?: string;
   access_token: string;
   refresh_token: string;
-  expire_at: number; // epoch detik
+  expire_at: number; // epoch detik (access token; diperbarui otomatis)
+  /** Perkiraan habisnya refresh token (epoch detik): 30 hari sejak terakhir login/refresh. */
+  refresh_expire_at?: number;
+  connected_at?: number; // epoch detik, pertama kali dihubungkan
 }
+
+/** Masa berlaku refresh token Shopee. Setelah lewat, toko harus dihubungkan ulang. */
+export const REFRESH_TOKEN_TTL_SECONDS = 30 * 86400;
 
 /** Public API: partner_id+path+ts. Shop API: ditambah access_token+shop_id. */
 export function makeSign(
@@ -77,6 +83,8 @@ export class ShopeeClient {
     return {
       shop_id: shopId,
       shop_name: prev?.shop_name,
+      connected_at: prev?.connected_at ?? Math.floor(Date.now() / 1000),
+      refresh_expire_at: Math.floor(Date.now() / 1000) + REFRESH_TOKEN_TTL_SECONDS,
       access_token: d.access_token,
       refresh_token: d.refresh_token,
       expire_at: Math.floor(Date.now() / 1000) + Number(d.expire_in ?? 14400) - 120,

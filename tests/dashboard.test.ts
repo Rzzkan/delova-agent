@@ -206,3 +206,16 @@ describe("voucher aktif (Shopee, fetch dipalsukan)", () => {
     }
   });
 });
+
+describe("ringkasan per toko", () => {
+  it("hitungan flash sale dan voucher dihitung per toko, tidak tercampur", async () => {
+    const { summarizePromos, summarizeVouchers } = await import("../src/lib/summary");
+    const a = summarizePromos([{ status: "upcoming" }, { status: "upcoming" }, { status: "ongoing" }]);
+    const b = summarizePromos([{ status: "upcoming" }]);
+    expect(a).toEqual({ upcoming: 2, ongoing: 1, total: 3 });
+    expect(b).toEqual({ upcoming: 1, ongoing: 0, total: 1 });
+    const n = 1_000_000;
+    expect(summarizeVouchers([{ end: n + 3600 }, { end: n + 10 * 86400 }, { end: null }], n)).toEqual({ active: 3, expiring: 1 });
+    expect(summarizeVouchers([], n)).toEqual({ active: 0, expiring: 0 });
+  });
+});

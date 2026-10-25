@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Config } from "../src/lib/config";
 import { COOKIE, isAuthed, isJsonRequest, overview, readCookie, runAction, sessionToken, shopHealth } from "../src/lib/dashboard";
 import * as q from "../src/lib/queue";
@@ -114,5 +114,32 @@ describe("aksi dashboard", () => {
   });
   it("store aktif tetap yang diinjeksi", () => {
     expect(getStore()).toBeInstanceOf(MemStore);
+  });
+});
+
+describe("password dashboard", () => {
+  const OLD = process.env.DASHBOARD_PASSWORD;
+  afterEach(() => {
+    if (OLD === undefined) delete process.env.DASHBOARD_PASSWORD;
+    else process.env.DASHBOARD_PASSWORD = OLD;
+  });
+  it("tanpa DASHBOARD_PASSWORD, login memakai MCP_SECRET", async () => {
+    delete process.env.DASHBOARD_PASSWORD;
+    const { loginCredential } = await import("../src/lib/dashboard");
+    expect(loginCredential(SECRET)).toBe(SECRET);
+  });
+  it("dengan password: dipakai untuk login dan sesi berubah bila password diganti", async () => {
+    const { loginCredential } = await import("../src/lib/dashboard");
+    process.env.DASHBOARD_PASSWORD = "rahasia-dashboard";
+    expect(loginCredential(SECRET)).toBe("rahasia-dashboard");
+    const t1 = sessionToken(SECRET);
+    expect(isAuthed(req({ cookie: `${COOKIE}=${t1}` }), SECRET)).toBe(true);
+    process.env.DASHBOARD_PASSWORD = "password-baru-1";
+    expect(isAuthed(req({ cookie: `${COOKIE}=${t1}` }), SECRET)).toBe(false);
+  });
+  it("password < 8 karakter diabaikan", async () => {
+    const { loginCredential } = await import("../src/lib/dashboard");
+    process.env.DASHBOARD_PASSWORD = "pendek";
+    expect(loginCredential(SECRET)).toBe(SECRET);
   });
 });

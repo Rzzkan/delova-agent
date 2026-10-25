@@ -132,7 +132,7 @@ export default function DashboardClient() {
     e.preventDefault();
     setLoginErr("");
     try {
-      await post("/api/dashboard/login", { key });
+      await post("/api/dashboard/login", { password: key });
       setKey("");
       await load();
     } catch (err) {
@@ -183,8 +183,8 @@ export default function DashboardClient() {
     return (
       <form className="login card" onSubmit={login}>
         <h1>Delova Agent</h1>
-        <p>Masukkan kunci akses (MCP_SECRET) untuk membuka dashboard.</p>
-        <input type="password" autoFocus autoComplete="current-password" placeholder="Kunci akses" value={key} onChange={(e) => setKey(e.target.value)} />
+        <p>Masukkan password untuk membuka dashboard.</p>
+        <input type="password" autoFocus autoComplete="current-password" placeholder="Password" value={key} onChange={(e) => setKey(e.target.value)} />
         <div className="err">{loginErr}</div>
         <button className="primary" type="submit" disabled={!key}>Masuk</button>
       </form>

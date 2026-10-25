@@ -80,7 +80,7 @@ Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
 
 ## Dashboard
 
-Buka `https://<domain>/dashboard` dan masuk dengan `MCP_SECRET`. Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
+Buka `https://<domain>/dashboard` dan masuk dengan password dari `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`). Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
 (30 hari sejak token diperbarui, diperpanjang otomatis saat toko dipakai), tombol hubungkan/hubungkan ulang toko, serta progres job antrian
 secara langsung (berhasil/gagal/menunggu, ETA, alasan jeda, daftar gagal) dengan kontrol mulai, jeda, lanjutkan, batalkan, coba ulang, rollback, dan jalankan worker.
 Panel flash sale belum ada di dashboard; gunakan chat Claude.

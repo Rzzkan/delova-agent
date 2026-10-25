@@ -12,9 +12,20 @@ export const COOKIE = "sa_session";
 export const SESSION_SECONDS = 7 * 86400;
 const SOON_SECONDS = 5 * 86400;
 
-/** Nilai cookie sesi: diturunkan dari rahasia, jadi mengganti MCP_SECRET otomatis mencabut semua sesi. */
-export function sessionToken(secret: string): string {
-  return createHmac("sha256", secret).update("dashboard-session-v1").digest("hex");
+/** Nilai cookie sesi: diturunkan dari MCP_SECRET (+ password dashboard), jadi mengganti salah satunya otomatis mencabut semua sesi. */
+export function sessionToken(secret: string, password: string = dashboardPassword()): string {
+  return createHmac("sha256", secret).update(password ? `dashboard-session-v1\0${password}` : "dashboard-session-v1").digest("hex");
+}
+
+/** Password khusus dashboard (DASHBOARD_PASSWORD, min. 8 karakter). Kosong = login memakai MCP_SECRET. */
+export function dashboardPassword(): string {
+  const p = (process.env.DASHBOARD_PASSWORD ?? "").trim();
+  return p.length >= 8 ? p : "";
+}
+
+/** Nilai yang harus diketik pengguna di halaman login. */
+export function loginCredential(secret: string): string {
+  return dashboardPassword() || secret;
 }
 
 export function readCookie(req: Request, name: string): string {

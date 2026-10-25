@@ -83,7 +83,7 @@ curl -s https://agent.delova.id/api/health                      # {"ok":true,"st
 curl -s -o /dev/null -w "%{http_code}\n" https://agent.delova.id/api/mcp   # 401 (tanpa kunci), tandanya terlindungi
 ```
 
-Buka `https://agent.delova.id/dashboard`, masuk dengan `MCP_SECRET`, klik **+ Hubungkan Shopee** / **+ Hubungkan TikTok Shop** untuk tiap toko, lalu tambahkan connector di Claude:
+Buka `https://agent.delova.id/dashboard`, masuk dengan `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`), klik **+ Hubungkan Shopee** / **+ Hubungkan TikTok Shop** untuk tiap toko, lalu tambahkan connector di Claude:
 `https://agent.delova.id/api/mcp?key=<MCP_SECRET>` (Claude Code: `claude mcp add --transport http delova-agent https://agent.delova.id/api/mcp --header "Authorization: Bearer <MCP_SECRET>"`).
 
 > Dashboard memakai cookie `Secure`, jadi login hanya berfungsi lewat **https** (domain). Untuk akses darurat tanpa domain: `ssh -L 3210:127.0.0.1:3210 user@vps` lalu buka `http://localhost:3210/dashboard` (localhost dianggap aman oleh browser).
@@ -118,6 +118,7 @@ Pulihkan: hentikan stack, `tar xzf` ke volume dengan perintah serupa, lalu `dock
 - Aplikasi dan Redis tidak membuka port ke internet. Jangan ubah `127.0.0.1:${AGENT_PORT}:3000` menjadi `"3210:3000"`: port yang dipublikasikan Docker **melewati ufw**.
 - Firewall cukup membuka 22, 80, 443.
 - `MCP_SECRET` = akses penuh ke toko. Panjang acak, simpan di `.env` (izin 600). Mengganti nilainya mencabut semua sesi dashboard; perbarui URL connector di Claude.
+- `DASHBOARD_PASSWORD` (min. 8 karakter) = password login dashboard yang terpisah dari `MCP_SECRET`, jadi kunci connector tidak perlu diketik di browser. Mengganti nilainya mengeluarkan semua sesi. Kosong = login memakai `MCP_SECRET`.
 - Login dashboard dibatasi 10 percobaan gagal per IP per 15 menit. IP dibaca dari `X-Forwarded-For` yang ditambahkan Caddy.
 - URL connector memuat `?key=`. Pastikan blok Caddy ini tidak mengaktifkan access log yang menyimpan query string, atau pakai header Bearer (Claude Code).
 - Redis hanya terjangkau dari container aplikasi (network `internal`), karena itu tanpa password. Bila Anda membuka akses lain ke network itu, tambahkan `--requirepass`.

@@ -80,7 +80,7 @@ Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
 
 ## Dashboard
 
-Buka `https://<domain>/dashboard` dan masuk dengan password dari `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`). Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
+Dashboard memakai Tailwind CSS (tata letak admin: sidebar, kartu ringkasan, mode terang/gelap, responsif). Buka `https://<domain>/dashboard` dan masuk dengan password dari `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`). Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
 (30 hari sejak token diperbarui, diperpanjang otomatis saat toko dipakai), tombol hubungkan/hubungkan ulang toko, serta progres job antrian
 secara langsung (berhasil/gagal/menunggu, ETA, alasan jeda, daftar gagal) dengan kontrol mulai, jeda, lanjutkan, batalkan, coba ulang, rollback, dan jalankan worker.
 Panel **Flash sale mendatang** menampilkan jadwal flash sale yang akan datang dan sedang berlangsung di tiap toko (Shopee dan TikTok); membuat/mengubah flash sale tetap lewat chat Claude. Panel **Voucher aktif** menampilkan voucher Shopee yang sedang berlaku (kode, diskon, min. belanja, pemakaian, tanggal berakhir); voucher TikTok Shop belum didukung.

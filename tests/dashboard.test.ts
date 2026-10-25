@@ -183,3 +183,26 @@ describe("upcomingPromos (Shopee, fetch dipalsukan)", () => {
     }
   });
 });
+
+describe("voucher aktif (Shopee, fetch dipalsukan)", () => {
+  it("parsing nominal/persen, urut berakhir terdekat, error terisolasi", async () => {
+    const { activeVouchers, parseShopeeVouchers } = await import("../src/lib/vouchers");
+    const p = parseShopeeVouchers({ voucher_list: [{ voucher_id: 5, voucher_code: "HEMAT10", voucher_name: "Hemat", voucher_type: 1, reward_type: 2, percentage: 10, min_basket_price: 100000, usage_quantity: 50, current_usage: 7, start_time: 100, end_time: 900 }, { voucher_id: 6, reward_type: 1, discount_amount: 15000, end_time: 500 }] });
+    expect(p[0]).toMatchObject({ id: "5", code: "HEMAT10", scope: "toko", reward: "persen", amount: 10, quota: 50, used: 7 });
+    expect(p[1]).toMatchObject({ reward: "nominal", amount: 15000 });
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: any) => {
+      const u = new URL(String(input));
+      if (u.searchParams.get("shop_id") === "2") return Response.json({ error: "error_auth", message: "no permission" });
+      if (!u.pathname.endsWith("get_voucher_list") || u.searchParams.get("status") !== "ongoing") return new Response("{}", { status: 404 });
+      return Response.json({ error: "", response: { more: false, voucher_list: [{ voucher_id: 1, end_time: now() + 9000 }, { voucher_id: 2, end_time: now() + 100 }] } });
+    }) as typeof fetch;
+    try {
+      const r = await activeVouchers(cfg);
+      expect(r.shops.find((s) => s.shop_id === "1")!.vouchers.map((v) => v.id)).toEqual(["2", "1"]);
+      expect(r.shops.find((s) => s.shop_id === "2")!.error).toBeTruthy();
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});

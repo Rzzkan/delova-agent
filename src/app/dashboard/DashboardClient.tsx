@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Overview } from "@/lib/dashboard";
 import type { PromosOverview } from "@/lib/promos";
+import type { VouchersOverview } from "@/lib/vouchers";
 
 type Job = Overview["jobs"][number];
 type Shop = Overview["shops"][number];
@@ -81,6 +82,9 @@ export default function DashboardClient() {
   const [promos, setPromos] = useState<PromosOverview | null>(null);
   const [promosErr, setPromosErr] = useState("");
   const [promosBusy, setPromosBusy] = useState(false);
+  const [vouchers, setVouchers] = useState<VouchersOverview | null>(null);
+  const [vouchersErr, setVouchersErr] = useState("");
+  const [vouchersBusy, setVouchersBusy] = useState(false);
   const [key, setKey] = useState("");
   const [loginErr, setLoginErr] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -131,6 +135,27 @@ export default function DashboardClient() {
     const t = setInterval(() => { if (!document.hidden) void loadPromos(); }, 180000);
     return () => clearInterval(t);
   }, [authed, loadPromos]);
+
+  const loadVouchers = useCallback(async (refresh = false) => {
+    setVouchersBusy(true);
+    try {
+      const r = await fetch(`/api/dashboard/vouchers${refresh ? "?refresh=1" : ""}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      setVouchers(j);
+      setVouchersErr("");
+    } catch (e) {
+      setVouchersErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVouchersBusy(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (!authed) return;
+    void loadVouchers();
+    const t = setInterval(() => { if (!document.hidden) void loadVouchers(); }, 180000);
+    return () => clearInterval(t);
+  }, [authed, loadVouchers]);
 
   const live = (data?.summary.active_jobs ?? 0) > 0;
   useEffect(() => {
@@ -323,6 +348,52 @@ export default function DashboardClient() {
                 <span className="id"> · ID {e.id}</span>
               </div>
             ))}
+          </div>
+        ))}
+      </div>
+
+      <h2>Voucher aktif</h2>
+      <div className="row" style={{ marginBottom: 10 }}>
+        <span className="meta" style={{ margin: 0 }}>
+          Voucher Shopee yang sedang berlaku{vouchers ? ` · dicek ${new Date(vouchers.generated_at).toLocaleTimeString("id-ID", { timeZone: TZ })}` : ""} · voucher TikTok Shop belum didukung
+        </span>
+        <span className="spacer" />
+        <button disabled={vouchersBusy} onClick={() => loadVouchers(true)}>{vouchersBusy ? "Memuat…" : "Muat ulang voucher"}</button>
+      </div>
+      {vouchersErr && <div className="note">Gagal memuat voucher: {vouchersErr}</div>}
+      <div className="shops">
+        {!vouchers && !vouchersErr && <div className="card empty">Memuat voucher…</div>}
+        {vouchers && vouchers.shops.length === 0 && <div className="card empty">Belum ada toko Shopee terhubung.</div>}
+        {vouchers?.shops.map((p) => (
+          <div className="card shop" key={p.shop_id}>
+            <div className="row">
+              <div>
+                <h3>{p.shop_name ?? "Toko tanpa nama"}</h3>
+                <span className="id">Shopee · ID {p.shop_id}</span>
+              </div>
+              <span className="spacer" />
+              <span className={`pill ${p.error ? "bad" : p.vouchers.length ? "ok" : "mute"}`}>{p.error ? "Gagal dimuat" : `${p.vouchers.length} aktif${p.truncated ? "+" : ""}`}</span>
+            </div>
+            {p.error && <div className="meta">{p.error}</div>}
+            {!p.error && p.vouchers.length === 0 && <div className="meta">Tidak ada voucher aktif.</div>}
+            {p.vouchers.map((v) => {
+              const soon = v.end !== null && v.end * 1000 - Date.now() < 3 * 86400000;
+              const rp = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+              const reward = v.amount === null ? null : v.reward === "persen" ? `${v.amount}%` : v.reward === "koin" ? `${v.amount} koin` : rp(v.amount);
+              return (
+                <div className="meta" key={v.id}>
+                  <b>{v.name ?? v.code ?? `Voucher ${v.id}`}</b>
+                  {v.code ? <> · kode <b>{v.code}</b></> : null}
+                  {v.scope ? <> · voucher {v.scope}</> : null}
+                  {reward ? <> · diskon {reward}</> : null}
+                  {v.min_spend ? <> · min. belanja {rp(v.min_spend)}</> : null}
+                  {v.quota !== null ? <> · terpakai {v.used ?? 0}/{v.quota}</> : null}
+                  {v.end ? <> · sampai <b>{fmt(v.end * 1000)}</b></> : null}
+                  {soon ? <> <span className="pill warn">Segera berakhir</span></> : null}
+                  <span className="id"> · ID {v.id}</span>
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

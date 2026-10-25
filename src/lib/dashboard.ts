@@ -1,10 +1,12 @@
 /** Logika dashboard: sesi login (cookie), ringkasan toko & antrian. Token Shopee TIDAK pernah dikirim ke browser. */
 import { createHmac } from "node:crypto";
 import { isAuthorized, safeEqual } from "./auth";
-import { Config } from "./config";
+import { Config, loadTikTokConfig, tiktokConfigured } from "./config";
 import * as queue from "./queue";
+import type { Platform } from "./queue";
 import { ShopeeClient } from "./shopee";
 import { storeKind } from "./store";
+import { TikTokClient } from "./tiktok";
 
 export const COOKIE = "sa_session";
 export const SESSION_SECONDS = 7 * 86400;
@@ -45,24 +47,48 @@ export function shopHealth(refreshExpireAt: number | undefined, nowSec = Date.no
 }
 
 export async function overview(cfg: Config) {
-  const shops = await new ShopeeClient(cfg).shops();
-  const names = new Map(shops.map((s) => [s.shop_id, s.shop_name ?? null]));
-  const jobs = (await queue.listJobs(30)).map((j) => ({ ...j, shop_name: names.get(j.shop_id) ?? null }));
+  const ttCfg = loadTikTokConfig();
+  const shopee = await new ShopeeClient(cfg).shops();
+  const ttClient = new TikTokClient(cfg, ttCfg);
+  const ttShops = await ttClient.shops();
+  const ttAuth = new Map((await ttClient.auths()).map((a) => [a.open_id, a]));
   const now = Date.now() / 1000;
-  return {
-    generated_at: new Date().toISOString(),
-    server: { env: cfg.env, read_only: cfg.readOnly, store: storeKind() },
-    // sengaja hanya field aman; access_token / refresh_token tidak ikut
-    shops: shops
-      .map((s) => ({
+
+  const shops = [
+    ...shopee.map((s) => ({
+      platform: "shopee" as Platform,
+      shop_id: String(s.shop_id),
+      shop_name: s.shop_name ?? null,
+      region: null as string | null,
+      health: shopHealth(s.refresh_expire_at, now),
+      refresh_expire_at: s.refresh_expire_at ?? null,
+      days_left: s.refresh_expire_at ? Math.floor((s.refresh_expire_at - now) / 86400) : null,
+      connected_at: s.connected_at ?? null,
+      estimated: true, // Shopee tidak memberi tanggal; ini perkiraan 30 hari sejak refresh terakhir
+    })),
+    ...ttShops.map((s) => {
+      const a = ttAuth.get(s.open_id);
+      return {
+        platform: "tiktok" as Platform,
         shop_id: s.shop_id,
         shop_name: s.shop_name ?? null,
-        health: shopHealth(s.refresh_expire_at, now),
-        refresh_expire_at: s.refresh_expire_at ?? null,
-        days_left: s.refresh_expire_at ? Math.floor((s.refresh_expire_at - now) / 86400) : null,
-        connected_at: s.connected_at ?? null,
-      }))
-      .sort((a, b) => a.shop_id - b.shop_id),
+        region: s.region ?? null,
+        health: shopHealth(a?.refresh_expire_at, now),
+        refresh_expire_at: a?.refresh_expire_at ?? null,
+        days_left: a?.refresh_expire_at ? Math.floor((a.refresh_expire_at - now) / 86400) : null,
+        connected_at: a?.connected_at ?? null,
+        estimated: false, // tanggal resmi dari TikTok
+      };
+    }),
+  ].sort((x, y) => x.platform.localeCompare(y.platform) || x.shop_id.localeCompare(y.shop_id, "en", { numeric: true }));
+  // sengaja hanya field aman; access_token / refresh_token tidak ikut
+
+  const names = new Map(shops.map((s) => [`${s.platform}:${s.shop_id}`, s.shop_name]));
+  const jobs = (await queue.listJobs(30)).map((j) => ({ ...j, shop_name: names.get(`${j.platform}:${j.shop_id}`) ?? null }));
+  return {
+    generated_at: new Date().toISOString(),
+    server: { env: cfg.env, read_only: cfg.readOnly, store: storeKind(), tiktok_configured: tiktokConfigured(ttCfg) },
+    shops,
     jobs,
     summary: {
       active_jobs: jobs.filter((j) => j.status === "queued" || j.status === "running").length,

@@ -2,6 +2,7 @@
 
 Server **MCP** yang berjalan di **Vercel** supaya **chat Claude** menjadi antarmuka utama untuk mengelola toko Shopee
 (Delova Wardrobe, Kids, Scarf) lewat Shopee Open Platform API v2: audit SEO, ubah nama & deskripsi produk massal, dan atur flash sale.
+Mulai v0.3 juga mendukung **TikTok Shop** (Partner Center API): audit SEO, edit judul/deskripsi lewat antrian yang sama, dan promosi (diskon, harga tetap, flash sale).
 
 ```
 Claude (chat) ──MCP/HTTPS──▶ Vercel (Next.js, /api/mcp) ──▶ Shopee Open Platform API
@@ -22,6 +23,21 @@ membuat backup, dan mengirimkannya dengan aman.
 | Edit kecil (langsung) | `preview_product_changes`, `apply_product_changes`, `list_backups`, `rollback_changes` | Dry-run default, backup otomatis, maks 40 produk/panggilan |
 | **Edit massal (antrian)** | `queue_enqueue`, `queue_control`, `queue_status`, `queue_list`, `queue_run` | Hingga 2000 produk/job, diproses otomatis di latar belakang |
 | Flash sale | `flash_sale_time_slots`, `_list`, `_detail`, `_create`, `_set_status`, `_delete` | Dry-run default; hapus butuh `confirm` |
+
+## Tool TikTok Shop
+
+Aktif bila `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` diisi (lihat DEPLOY.md, Tahap 5b). ID produk TikTok selalu **string** (melebihi batas angka JavaScript).
+
+| Area | Tool | Keterangan |
+|---|---|---|
+| Toko | `tiktok_list_shops` | Satu otorisasi seller bisa membawa beberapa toko |
+| Produk | `tiktok_list_products`, `tiktok_get_products` | Paginasi `page_token`; deskripsi berupa HTML |
+| SEO | `tiktok_seo_audit`, `tiktok_preview_changes` | Batas judul 25-255, deskripsi maks 10000; preview membandingkan dengan isi toko |
+| Edit massal | `queue_enqueue` dengan `platform: "tiktok"` | Antrian, rollback, retry, dashboard sama dengan Shopee (~35 produk/menit) |
+| Promosi | `tiktok_promotion_list`, `_detail`, `_create`, `_add_products`, `_remove_products`, `_deactivate` | `DIRECT_DISCOUNT`, `FIXED_PRICE`, `FLASH_SALE`; dry-run default; hapus/nonaktif butuh `confirm` |
+
+> TikTok memeriksa ulang (audit) produk yang judul/deskripsinya diubah, sehingga produk bisa sempat berstatus "Pending" sebelum kembali aktif.
+> Path endpoint 202309 untuk produk & promosi ditulis dari dokumentasi Partner Center namun **belum diuji ke toko nyata**; uji dengan 1-2 produk dan `dry_run` dulu.
 
 ## Deploy ke Vercel
 
@@ -111,7 +127,7 @@ Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
 npm install
 cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
 npm run dev                     # http://localhost:3000/api/mcp?key=...
-npm test                        # 47 tes: signing, SEO, auth, bulk, antrian, dashboard
+npm test                        # 63 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi
 npm run typecheck
 ```
 
@@ -130,6 +146,8 @@ src/app/api/worker/run             worker antrian (self-chaining + cron)
 src/lib/queue.ts                   antrian: enqueue, kontrol, worker, rollback
 src/lib/tools.ts                   definisi tool untuk Claude
 src/lib/{products,bulk,seo,flashSale}.ts
+src/lib/tiktok*.ts                 klien TikTok Shop, produk, promosi
+src/app/api/tiktok/{connect,callback}  otorisasi toko TikTok
 src/lib/store.ts                   Upstash Redis (prod) / file (lokal)
 tests/
 ```

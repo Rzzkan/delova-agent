@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const handler = createMcpHandler(
   (server) => registerTools(server),
-  { serverInfo: { name: "shopee-agent", version: "0.2.0" } },
+  { serverInfo: { name: "shopee-agent", version: "0.3.0" } },
   { basePath: "/api", maxDuration: 60, disableSse: true, verboseLogs: false },
 );
 

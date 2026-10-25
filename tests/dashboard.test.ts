@@ -76,9 +76,9 @@ describe("overview", () => {
   it("daftar toko, hari tersisa, dan status", async () => {
     const o = await overview(cfg);
     const [a, b, c] = o.shops;
-    expect([a.shop_id, a.health, a.days_left]).toEqual([1, "active", 26]);
-    expect([b.shop_id, b.health]).toEqual([2, "expiring"]);
-    expect([c.shop_id, c.health, c.refresh_expire_at]).toEqual([3, "unknown", null]);
+    expect([a.shop_id, a.health, a.days_left]).toEqual(["1", "active", 26]);
+    expect([b.shop_id, b.health]).toEqual(["2", "expiring"]);
+    expect([c.shop_id, c.health, c.refresh_expire_at]).toEqual(["3", "unknown", null]);
     expect(o.server).toMatchObject({ env: "sandbox", read_only: false });
   });
   it("ringkasan antrian + nama toko di tiap job", async () => {

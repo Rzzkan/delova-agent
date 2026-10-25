@@ -1,8 +1,9 @@
 import { after } from "next/server";
 import { isAuthorized } from "@/lib/auth";
-import { loadConfig } from "@/lib/config";
+import { loadConfig, loadTikTokConfig, tiktokConfigured } from "@/lib/config";
 import { kickWorker, runSlice } from "@/lib/queue";
 import { ShopeeClient } from "@/lib/shopee";
+import { TikTokClient } from "@/lib/tiktok";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -19,7 +20,8 @@ async function run(req: Request): Promise<Response> {
   }
   after(async () => {
     try {
-      const r = await runSlice(new ShopeeClient(cfg));
+      const ttCfg = loadTikTokConfig();
+      const r = await runSlice(new ShopeeClient(cfg), undefined, tiktokConfigured(ttCfg) ? new TikTokClient(cfg, ttCfg) : undefined);
       if (r.more) await kickWorker(cfg);
     } catch (e) {
       console.error("worker slice gagal:", e);

@@ -76,6 +76,15 @@ Vercel tidak punya disk tetap, jadi token toko dan antrian disimpan di Redis.
 4. Pastikan app punya izin (permission) untuk modul **Product** dan **Flash Sale / Marketing**. Untuk `production`, app harus sudah disetujui/live oleh Shopee.
 5. Di Vercel → **Settings → Environment Variables**, isi `SHOPEE_PARTNER_ID` dan `SHOPEE_PARTNER_KEY`, lalu **Redeploy** lagi.
 
+### Opsional: TikTok Shop (Tahap 5b)
+
+Lewati bagian ini bila hanya memakai Shopee.
+
+1. Daftar sebagai developer di **TikTok Shop Partner Center** (partner.tiktokshop.com), buat **App** dengan tipe seller/custom, dan minta scope: *Product Basic/Management*, *Promotion* (dan *Shop* untuk otorisasi toko). Approval scope bisa memakan waktu.
+2. Di pengaturan App isi **Redirect URL** = `https://DOMAIN/api/tiktok/callback`. Catat **App Key**, **App Secret**, dan **Service ID** (bagian Authorization).
+3. Di Vercel tambahkan env `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID`, lalu Redeploy.
+4. Buka `/dashboard` → **+ Hubungkan TikTok Shop** → login sebagai seller → izinkan. Semua toko yang diotorisasi seller itu otomatis terdaftar.
+
 ## Tahap 6. Verifikasi deployment
 
 Ganti `DOMAIN` dan `KUNCI`. Pakai `curl.exe` di PowerShell.
@@ -147,6 +156,9 @@ Bila semua uji memakai `sandbox`, ganti `SHOPEE_ENV` ke `production`, ganti Part
 | `error_permission` / `error_auth` | App belum punya izin modul tersebut, atau token toko kedaluwarsa. Minta izin di console, atau hubungkan ulang toko. |
 | Job antrian status `paused` | Lihat `pause_reason` di `queue_status`. Perbaiki penyebabnya, lalu `queue_control resume`. |
 | Job `queued` tetapi tidak maju | Minta Claude memanggil `queue_run` berulang sampai `more=false`; cek Deployment Protection (Tahap 6). Vercel Cron di Hobby hanya 1x/hari. |
+| TikTok: "TikTok Shop belum dikonfigurasi" | Env `TIKTOK_*` belum diisi atau belum Redeploy (Tahap 5b). |
+| TikTok: error 105001/105002 terus | Token seller habis; hubungkan ulang dari dashboard. |
+| TikTok: scope/permission ditolak | Scope Product/Promotion belum di-approve di Partner Center. |
 | Perlu ganti kunci (bocor) | Ganti `MCP_SECRET` dan `CRON_SECRET` di Vercel → Redeploy → perbarui URL connector di Claude. |
 
 ## Biaya & batas

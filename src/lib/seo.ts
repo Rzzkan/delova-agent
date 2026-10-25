@@ -1,4 +1,4 @@
-/** Aturan SEO produk Shopee (judul & deskripsi). Murni lokal, tanpa API. */
+/** Aturan SEO produk (Shopee & TikTok Shop): judul & deskripsi. Murni lokal, tanpa API. */
 
 export const TITLE_MIN = 20;
 export const TITLE_MAX = 120; // batas Shopee untuk nama produk
@@ -8,12 +8,23 @@ export const DESC_MAX = 3000; // batas deskripsi
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
 const SPAM = /(!!+|\*{2,}|#{2,}|\bpromo\b|\bmurah banget\b|\bdiskon\b|\bsale\b|\bready stock\b)/i;
 
-export function validateTitle(name: string): string[] {
+/** Batas per marketplace. Batas TikTok Shop dari dokumentasi umum; bila API menolak, job menandai gagal beserta alasannya. */
+export interface Limits {
+  titleMin: number;
+  titleMax: number;
+  descMin: number;
+  descMax: number;
+  label: string;
+}
+export const SHOPEE_LIMITS: Limits = { titleMin: TITLE_MIN, titleMax: TITLE_MAX, descMin: DESC_MIN, descMax: DESC_MAX, label: "Shopee" };
+export const TIKTOK_LIMITS: Limits = { titleMin: 25, titleMax: 255, descMin: 100, descMax: 10000, label: "TikTok Shop" };
+
+export function validateTitle(name: string, lim: Limits = SHOPEE_LIMITS): string[] {
   const issues: string[] = [];
   const n = name.trim().length;
-  if (n < TITLE_MIN) issues.push(`terlalu pendek (${n} < ${TITLE_MIN})`);
-  if (n > TITLE_MAX) issues.push(`terlalu panjang (${n} > ${TITLE_MAX}) - akan ditolak Shopee`);
-  else if (n >= TITLE_MIN && n < 70) issues.push(`masih bisa dimaksimalkan untuk keyword (${n}/${TITLE_MAX} karakter)`);
+  if (n < lim.titleMin) issues.push(`terlalu pendek (${n} < ${lim.titleMin})`);
+  if (n > lim.titleMax) issues.push(`terlalu panjang (${n} > ${lim.titleMax}) - akan ditolak ${lim.label}`);
+  else if (n >= lim.titleMin && n < 70) issues.push(`masih bisa dimaksimalkan untuk keyword (${n}/${lim.titleMax} karakter)`);
 
   const letters = [...name].filter((c) => c.toLowerCase() !== c.toUpperCase());
   if (letters.length && letters.filter((c) => c === c.toUpperCase()).length / letters.length > 0.6) {
@@ -31,29 +42,32 @@ export function validateTitle(name: string): string[] {
   return issues;
 }
 
-export function validateDescription(desc: string): string[] {
+export function validateDescription(desc: string, lim: Limits = SHOPEE_LIMITS): string[] {
   const issues: string[] = [];
   const n = desc.trim().length;
-  if (n < DESC_MIN) issues.push(`deskripsi terlalu pendek (${n} < ${DESC_MIN})`);
-  if (n > DESC_MAX) issues.push(`deskripsi terlalu panjang (${n} > ${DESC_MAX}) - akan ditolak Shopee`);
+  if (n < lim.descMin) issues.push(`deskripsi terlalu pendek (${n} < ${lim.descMin})`);
+  if (n > lim.descMax) issues.push(`deskripsi terlalu panjang (${n} > ${lim.descMax}) - akan ditolak ${lim.label}`);
   return issues;
 }
 
 /** Pelanggaran keras yang akan membuat Shopee menolak perubahan. */
-export function blockingErrors(name?: string, description?: string): string[] {
+export function blockingErrors(name?: string, description?: string, lim: Limits = SHOPEE_LIMITS): string[] {
   const errs: string[] = [];
   if (name !== undefined) {
     const n = name.trim().length;
-    if (n < TITLE_MIN || n > TITLE_MAX) errs.push(`nama ${n} karakter, harus ${TITLE_MIN}-${TITLE_MAX}`);
+    if (n < lim.titleMin || n > lim.titleMax) errs.push(`nama ${n} karakter, harus ${lim.titleMin}-${lim.titleMax}`);
   }
-  if (description !== undefined && description.length > DESC_MAX) {
-    errs.push(`deskripsi ${description.length} karakter, maks ${DESC_MAX}`);
+  if (description !== undefined && description.length > lim.descMax) {
+    errs.push(`deskripsi ${description.length} karakter, maks ${lim.descMax}`);
   }
   return errs;
 }
 
-export function auditItem(item: { item_id: number; item_name: string; description?: string }) {
-  const issues = validateTitle(item.item_name);
-  if (item.description) issues.push(...validateDescription(item.description));
+export function auditItem(
+  item: { item_id: number | string; item_name: string; description?: string },
+  lim: Limits = SHOPEE_LIMITS,
+) {
+  const issues = validateTitle(item.item_name, lim);
+  if (item.description) issues.push(...validateDescription(item.description, lim));
   return { item_id: item.item_id, name: item.item_name, name_len: item.item_name.length, issues };
 }

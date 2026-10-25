@@ -102,6 +102,8 @@ export const KEYS = {
   jobs: "shopee:jobs", // id -> JobMeta
   progress: "shopee:jobprogress", // id -> Progress
   items: (id: string) => `shopee:jobitems:${id}`, // item_id -> JobItem
+  ttAuth: "tiktok:auth", // open_id -> token seller (satu seller bisa punya beberapa toko)
+  ttShops: "tiktok:shops", // shop_id -> info toko (cipher, nama, region, open_id)
 } as const;
 
 /** Jenis penyimpanan aktif, untuk ditampilkan di dashboard. */

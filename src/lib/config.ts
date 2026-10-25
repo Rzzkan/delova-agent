@@ -37,3 +37,24 @@ export function requireCredentials(cfg: Config): void {
     throw new Error("SHOPEE_PARTNER_ID / SHOPEE_PARTNER_KEY belum diisi di environment variables.");
   }
 }
+
+/** Kredensial TikTok Shop (Partner Center). Opsional: Shopee tetap jalan tanpa ini. */
+export interface TikTokConfig {
+  appKey: string;
+  appSecret: string;
+  serviceId: string;
+  apiHost: string;
+  authHost: string;
+}
+
+export function loadTikTokConfig(): TikTokConfig {
+  return {
+    appKey: process.env.TIKTOK_APP_KEY ?? "",
+    appSecret: process.env.TIKTOK_APP_SECRET ?? "",
+    serviceId: process.env.TIKTOK_SERVICE_ID ?? "",
+    apiHost: process.env.TIKTOK_API_HOST ?? "https://open-api.tiktokglobalshop.com",
+    authHost: process.env.TIKTOK_AUTH_HOST ?? "https://auth.tiktok-shops.com",
+  };
+}
+
+export const tiktokConfigured = (t: TikTokConfig) => Boolean(t.appKey && t.appSecret);

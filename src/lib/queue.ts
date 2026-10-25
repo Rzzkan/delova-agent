@@ -15,6 +15,8 @@ import * as products from "./products";
 import * as seo from "./seo";
 import { ShopeeClient, ShopeeError } from "./shopee";
 import { KEYS, getStore } from "./store";
+import { TikTokClient, TikTokError, isAuthCode } from "./tiktok";
+import * as ttProducts from "./tiktokProducts";
 
 export const MAX_JOB_ITEMS = 2000;
 export const MAX_PER_ENQUEUE = 100;
@@ -26,10 +28,14 @@ const HEARTBEAT_FRESH_MS = 90_000;
 export const ITEMS_PER_MINUTE = 90; // perkiraan untuk ETA
 
 export type ControlStatus = "draft" | "queued" | "paused" | "cancelled";
+export type Platform = "shopee" | "tiktok";
+/** Shopee: angka. TikTok: string (ID-nya melebihi batas angka JavaScript). */
+export type ItemId = number | string;
 
 export interface JobMeta {
   id: string;
-  shop_id: number;
+  platform?: Platform; // kosong = shopee (job lama)
+  shop_id: number | string;
   label?: string;
   kind: "edit" | "rollback";
   rollback_of?: string;
@@ -43,8 +49,8 @@ export interface Progress {
   total: number;
   ok: number; // termasuk "tanpa perubahan"
   failed: number;
-  pending: number[]; // urutan antrean
-  failed_ids: number[];
+  pending: ItemId[]; // urutan antrean
+  failed_ids: ItemId[];
   consecutive_failures: number;
   heartbeat: number; // ms epoch
   finished_at?: string;
@@ -52,13 +58,13 @@ export interface Progress {
 }
 
 export interface JobItem {
-  item_id: number;
+  item_id: ItemId;
   name?: string;
   description?: string;
   status: "pending" | "ok" | "unchanged" | "failed";
   attempts: number;
   error?: string;
-  original?: { name: string; description: string; description_type: "normal" | "extended" };
+  original?: { name: string; description: string; description_type?: "normal" | "extended" };
 }
 
 export type DisplayStatus = ControlStatus | "running" | "completed" | "completed_with_errors";
@@ -78,14 +84,104 @@ export function displayStatus(meta: JobMeta, p: Progress): DisplayStatus {
   return Date.now() - p.heartbeat < HEARTBEAT_FRESH_MS ? "running" : "queued";
 }
 
+// ---------------------------------------------------------------- driver per marketplace
+
+export interface BaseInfo {
+  name: string;
+  description: string;
+  description_type?: "normal" | "extended";
+}
+
+/** Perbedaan antar marketplace dibungkus di sini; logika antrian di bawahnya sama untuk semua. */
+export interface Driver {
+  platform: Platform;
+  limits: seo.Limits;
+  batch: number; // produk per putaran baca
+  perMinute: number; // untuk ETA
+  getBase(shopId: number | string, ids: ItemId[]): Promise<Map<string, BaseInfo>>;
+  update(shopId: number | string, id: ItemId, o: { name?: string; description?: string; base: BaseInfo }): Promise<void>;
+  classify(e: unknown): "auth" | "transient" | "permanent";
+  errText(e: unknown): string;
+}
+
+function netKind(e: unknown): "transient" | null {
+  const name = (e as Error)?.name;
+  return name === "TimeoutError" || name === "AbortError" || e instanceof TypeError ? "transient" : null; // jaringan
+}
+
+export function shopeeDriver(c: ShopeeClient): Driver {
+  return {
+    platform: "shopee",
+    limits: seo.SHOPEE_LIMITS,
+    batch: BATCH,
+    perMinute: ITEMS_PER_MINUTE,
+    async getBase(shopId, ids) {
+      const rows = await products.getBaseInfo(c, Number(shopId), ids.map(Number));
+      return new Map(
+        rows.map((i) => {
+          const s = products.slim(i);
+          return [String(s.item_id), { name: s.item_name, description: s.description, description_type: s.description_type }];
+        }),
+      );
+    },
+    async update(shopId, id, o) {
+      await products.updateItem(c, Number(shopId), Number(id), {
+        name: o.name,
+        description: o.description,
+        descriptionType: o.base.description_type,
+      });
+    },
+    classify(e) {
+      if (e instanceof ShopeeError) {
+        if (/error_auth|access_token|invalid_acc|permission/i.test(e.code)) return "auth";
+        if (/error_server|error_busy|error_inner|rate|too_many|^http_5|^http_429/i.test(e.code)) return "transient";
+        return "permanent";
+      }
+      return netKind(e) ?? "permanent";
+    },
+    errText: (e) => (e instanceof ShopeeError ? `${e.code}: ${e.detail}` : e instanceof Error ? e.message : String(e)),
+  };
+}
+
+export function tiktokDriver(c: TikTokClient): Driver {
+  return {
+    platform: "tiktok",
+    limits: seo.TIKTOK_LIMITS,
+    batch: 10, // TikTok tidak punya get massal: satu panggilan per produk
+    perMinute: 35, // get + partial_edit per produk
+    async getBase(shopId, ids) {
+      const rows = await ttProducts.getMany(c, String(shopId), ids.map(String));
+      return new Map(rows.map((r) => [r.item_id, { name: r.item_name, description: r.description }]));
+    },
+    async update(shopId, id, o) {
+      await ttProducts.updateProduct(c, String(shopId), String(id), { name: o.name, description: o.description });
+    },
+    classify(e) {
+      if (e instanceof TikTokError) {
+        if (isAuthCode(e) || /permission|scope|not.?authori[sz]ed/i.test(e.detail)) return "auth";
+        if (/^http_(5|429)/.test(e.code) || /rate|frequen|too many|busy|timeout|try again|system error/i.test(e.detail)) return "transient";
+        return "permanent";
+      }
+      return netKind(e) ?? "permanent";
+    },
+    errText: (e) => (e instanceof TikTokError ? `${e.code}: ${e.detail}` : e instanceof Error ? e.message : String(e)),
+  };
+}
+
+const platformOf = (m: JobMeta): Platform => m.platform ?? "shopee";
+const perMinuteOf = (m: JobMeta) => (platformOf(m) === "tiktok" ? 35 : ITEMS_PER_MINUTE);
+
 // ---------------------------------------------------------------- enqueue
 
 export async function enqueue(o: {
-  shopId: number;
-  changes: { item_id: number; name?: string; description?: string }[];
+  shopId: number | string;
+  platform?: Platform;
+  changes: { item_id: ItemId; name?: string; description?: string }[];
   jobId?: string;
   label?: string;
 }) {
+  const platform: Platform = o.platform ?? "shopee";
+  const limits = platform === "tiktok" ? seo.TIKTOK_LIMITS : seo.SHOPEE_LIMITS;
   if (o.changes.length > MAX_PER_ENQUEUE) throw new Error(`Maks ${MAX_PER_ENQUEUE} produk per panggilan queue_enqueue.`);
   let meta: JobMeta | null;
   let prog: Progress;
@@ -93,11 +189,12 @@ export async function enqueue(o: {
     meta = await getMeta(o.jobId);
     if (!meta) throw new Error(`job_id ${o.jobId} tidak ditemukan`);
     if (meta.status !== "draft") throw new Error(`Job sudah ${meta.status}; produk hanya bisa ditambah saat masih draft. Buat job baru.`);
-    if (meta.shop_id !== o.shopId) throw new Error("shop_id tidak sama dengan job.");
+    if (String(meta.shop_id) !== String(o.shopId) || platformOf(meta) !== platform) throw new Error("shop_id/platform tidak sama dengan job.");
     prog = (await getProgress(o.jobId))!;
   } else {
     meta = {
       id: `${nowIso().replace(/[-:T]/g, "").slice(0, 14)}-${randomBytes(3).toString("hex")}`,
+      platform,
       shop_id: o.shopId,
       label: o.label,
       kind: "edit",
@@ -108,19 +205,19 @@ export async function enqueue(o: {
   }
 
   const accepted: Record<string, JobItem> = {};
-  const rejected: { item_id: number; errors: string[] }[] = [];
+  const rejected: { item_id: ItemId; errors: string[] }[] = [];
   for (const ch of o.changes) {
-    const errors = seo.blockingErrors(ch.name, ch.description);
+    const errors = seo.blockingErrors(ch.name, ch.description, limits);
     if (ch.name === undefined && ch.description === undefined) errors.push("tidak ada name/description");
     if (errors.length) {
       rejected.push({ item_id: ch.item_id, errors });
       continue;
     }
-    accepted[String(ch.item_id)] = { item_id: ch.item_id, name: ch.name, description: ch.description, status: "pending", attempts: 0 };
+    accepted[String(ch.item_id)] = { item_id: platform === "tiktok" ? String(ch.item_id) : ch.item_id, name: ch.name, description: ch.description, status: "pending", attempts: 0 };
   }
 
-  const known = new Set(prog.pending);
-  const fresh = Object.values(accepted).filter((i) => !known.has(i.item_id));
+  const known = new Set(prog.pending.map(String));
+  const fresh = Object.values(accepted).filter((i) => !known.has(String(i.item_id)));
   if (prog.total + fresh.length > MAX_JOB_ITEMS) throw new Error(`Maks ${MAX_JOB_ITEMS} produk per job; buat job baru.`);
 
   await store().hsetMany(KEYS.items(meta.id), accepted); // produk yang sama ditimpa (versi terbaru menang)
@@ -205,7 +302,7 @@ async function rollbackJob(meta: JobMeta, jobId: string) {
     total: ids.length, ok: 0, failed: 0, pending: ids, failed_ids: [], consecutive_failures: 0, heartbeat: 0,
   } satisfies Progress);
   await store().hset(KEYS.jobs, id, {
-    id, shop_id: meta.shop_id, kind: "rollback", rollback_of: jobId, label: `rollback ${jobId}`,
+    id, platform: meta.platform, shop_id: meta.shop_id, kind: "rollback", rollback_of: jobId, label: `rollback ${jobId}`,
     status: "queued", created_at: nowIso(), started_at: nowIso(),
   } satisfies JobMeta);
   return { job_id: id, status: "queued", restoring: ids.length };
@@ -217,7 +314,7 @@ export async function status(jobId: string) {
   const meta = await getMeta(jobId);
   if (!meta) throw new Error(`job_id ${jobId} tidak ditemukan`);
   const p = (await getProgress(jobId))!;
-  const failures: { item_id: number; error?: string; attempts: number }[] = [];
+  const failures: { item_id: ItemId; error?: string; attempts: number }[] = [];
   for (const id of p.failed_ids.slice(0, 20)) {
     const it = await store().hget<JobItem>(KEYS.items(jobId), String(id));
     if (it) failures.push({ item_id: it.item_id, error: it.error, attempts: it.attempts });
@@ -226,6 +323,7 @@ export async function status(jobId: string) {
     job_id: jobId,
     label: meta.label,
     kind: meta.kind,
+    platform: platformOf(meta),
     shop_id: meta.shop_id,
     status: displayStatus(meta, p),
     pause_reason: meta.pause_reason,
@@ -233,7 +331,7 @@ export async function status(jobId: string) {
     done_ok: p.ok,
     failed: p.failed,
     pending: p.pending.length,
-    eta_minutes: p.pending.length ? Math.ceil(p.pending.length / ITEMS_PER_MINUTE) : 0,
+    eta_minutes: p.pending.length ? Math.ceil(p.pending.length / perMinuteOf(meta)) : 0,
     last_error: p.last_error,
     failures_sample: failures,
     created_at: meta.created_at,
@@ -249,7 +347,7 @@ export async function listJobs(limit = 15) {
   for (const m of metas) {
     const p = (await getProgress(m.id))!;
     out.push({
-      job_id: m.id, label: m.label, kind: m.kind, shop_id: m.shop_id, status: displayStatus(m, p),
+      job_id: m.id, label: m.label, kind: m.kind, platform: platformOf(m), shop_id: m.shop_id, per_minute: perMinuteOf(m), status: displayStatus(m, p),
       total: p.total, ok: p.ok, failed: p.failed, pending: p.pending.length, created_at: m.created_at,
       pause_reason: m.pause_reason,
     });
@@ -258,19 +356,6 @@ export async function listJobs(limit = 15) {
 }
 
 // ---------------------------------------------------------------- worker
-
-function classify(e: unknown): "auth" | "transient" | "permanent" {
-  if (e instanceof ShopeeError) {
-    if (/error_auth|access_token|invalid_acc|permission/i.test(e.code)) return "auth";
-    if (/error_server|error_busy|error_inner|rate|too_many|^http_5|^http_429/i.test(e.code)) return "transient";
-    return "permanent";
-  }
-  const name = (e as Error)?.name;
-  if (name === "TimeoutError" || name === "AbortError" || e instanceof TypeError) return "transient"; // jaringan
-  return "permanent";
-}
-
-const errText = (e: unknown) => (e instanceof ShopeeError ? `${e.code}: ${e.detail}` : e instanceof Error ? e.message : String(e));
 
 export interface SliceResult {
   processed: number;
@@ -281,7 +366,8 @@ export interface SliceResult {
 }
 
 /** Proses antrian sampai anggaran waktu habis. Aman dipanggil bersamaan (dijaga lock per job). */
-export async function runSlice(c: ShopeeClient, budgetMs = 38_000): Promise<SliceResult> {
+export async function runSlice(c: ShopeeClient, budgetMs = 38_000, tt?: TikTokClient): Promise<SliceResult> {
+  const drivers: Record<Platform, Driver | undefined> = { shopee: shopeeDriver(c), tiktok: tt ? tiktokDriver(tt) : undefined };
   const deadline = Date.now() + budgetMs;
   const res: SliceResult = { processed: 0, ok: 0, failed: 0, more: false, jobs: [] };
 
@@ -291,11 +377,13 @@ export async function runSlice(c: ShopeeClient, budgetMs = 38_000): Promise<Slic
 
   for (const m of metas) {
     if (Date.now() >= deadline) break;
+    const driver = drivers[platformOf(m)];
+    if (!driver) continue; // platform ini belum dikonfigurasi di server ini
     const lock = `shopee:joblock:${m.id}`;
     if (!(await store().lock(lock, LOCK_TTL))) continue;
     try {
       res.jobs.push(m.id);
-      await processJob(c, m.id, deadline, res);
+      await processJob(driver, m.id, deadline, res);
     } finally {
       await store().unlock(lock);
     }
@@ -316,7 +404,7 @@ export async function runSlice(c: ShopeeClient, budgetMs = 38_000): Promise<Slic
   return res;
 }
 
-async function processJob(c: ShopeeClient, jobId: string, deadline: number, res: SliceResult) {
+async function processJob(d: Driver, jobId: string, deadline: number, res: SliceResult) {
   const itemsKey = KEYS.items(jobId);
   while (Date.now() < deadline) {
     const meta = await getMeta(jobId); // baca ulang: hormati pause/cancel
@@ -328,13 +416,13 @@ async function processJob(c: ShopeeClient, jobId: string, deadline: number, res:
       return;
     }
 
-    const batchIds = p.pending.slice(0, BATCH);
-    let base: Map<number, products.SlimItem>;
+    const batchIds = p.pending.slice(0, d.batch);
+    let base: Map<string, BaseInfo>;
     try {
-      base = new Map((await products.getBaseInfo(c, meta.shop_id, batchIds)).map((i) => [i.item_id as number, products.slim(i)]));
+      base = await d.getBase(meta.shop_id, batchIds);
     } catch (e) {
-      const kind = classify(e);
-      p.last_error = errText(e);
+      const kind = d.classify(e);
+      p.last_error = d.errText(e);
       p.heartbeat = Date.now();
       p.consecutive_failures++;
       await store().hset(KEYS.progress, jobId, p);
@@ -362,7 +450,7 @@ async function processJob(c: ShopeeClient, jobId: string, deadline: number, res:
         continue;
       }
 
-      const cur = base.get(id);
+      const cur = base.get(String(id));
       let outcome: "ok" | "unchanged" | "failed" | "retry" = "ok";
       if (!cur) {
         item.error = "produk tidak ditemukan di toko";
@@ -370,23 +458,23 @@ async function processJob(c: ShopeeClient, jobId: string, deadline: number, res:
       } else {
         // simpan nilai asli SEBELUM menulis; jangan timpa bila job ini pernah menyentuh produk (crash-safe)
         if (!item.original) {
-          item.original = { name: cur.item_name, description: cur.description, description_type: cur.description_type };
+          item.original = { name: cur.name, description: cur.description, description_type: cur.description_type };
           await store().hset(itemsKey, String(id), item);
         }
-        const nameChanged = item.name !== undefined && item.name !== cur.item_name;
+        const nameChanged = item.name !== undefined && item.name !== cur.name;
         const descChanged = item.description !== undefined && item.description !== cur.description;
         if (!nameChanged && !descChanged) {
           outcome = "unchanged";
         } else {
           try {
-            await products.updateItem(c, meta.shop_id, id, {
+            await d.update(meta.shop_id, id, {
               name: nameChanged ? item.name : undefined,
               description: descChanged ? item.description : undefined,
-              descriptionType: cur.description_type,
+              base: cur,
             });
           } catch (e) {
-            const kind = classify(e);
-            item.error = errText(e);
+            const kind = d.classify(e);
+            item.error = d.errText(e);
             p.last_error = item.error;
             item.attempts++;
             if (kind === "auth") {
@@ -429,7 +517,7 @@ async function processJob(c: ShopeeClient, jobId: string, deadline: number, res:
   }
 }
 
-function markFailed(p: Progress, id: number) {
+function markFailed(p: Progress, id: ItemId) {
   p.failed++;
   p.failed_ids.push(id);
   p.consecutive_failures++;

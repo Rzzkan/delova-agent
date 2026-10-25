@@ -6,7 +6,7 @@ import type { Overview } from "@/lib/dashboard";
 type Job = Overview["jobs"][number];
 type Shop = Overview["shops"][number];
 type Detail = {
-  failures_sample: { item_id: number; error?: string; attempts: number }[];
+  failures_sample: { item_id: number | string; error?: string; attempts: number }[];
   pause_reason?: string;
   last_error?: string;
   eta_minutes: number;
@@ -27,6 +27,10 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   cancelled: { label: "Dibatalkan", cls: "mute" },
   completed: { label: "Selesai", cls: "ok" },
   completed_with_errors: { label: "Selesai, ada yang gagal", cls: "warn" },
+};
+const PLATFORM: Record<string, { label: string; connect: string }> = {
+  shopee: { label: "Shopee", connect: "/api/shopee/connect" },
+  tiktok: { label: "TikTok Shop", connect: "/api/tiktok/connect" },
 };
 const HEALTH: Record<string, { label: string; cls: string }> = {
   active: { label: "Aktif", cls: "ok" },
@@ -220,11 +224,11 @@ export default function DashboardClient() {
       <h2>Toko terhubung</h2>
       <div className="shops">
         {d.shops.map((s: Shop) => (
-          <div className="card shop" key={s.shop_id}>
+          <div className="card shop" key={`${s.platform}:${s.shop_id}`}>
             <div className="row">
               <div>
                 <h3>{s.shop_name ?? "Toko tanpa nama"}</h3>
-                <span className="id">ID {s.shop_id}</span>
+                <span className="id">{PLATFORM[s.platform].label}{s.region ? ` · region ${s.region}` : ""} · ID {s.shop_id}</span>
               </div>
               <span className="spacer" />
               <span className={`pill ${HEALTH[s.health].cls}`}>{HEALTH[s.health].label}</span>
@@ -232,7 +236,7 @@ export default function DashboardClient() {
             <div className="meta">
               {s.refresh_expire_at ? (
                 <>
-                  Izin akses {s.health === "expired" ? "berakhir" : "berakhir pada"} <b>{fmtDay(s.refresh_expire_at)}</b>
+                  Izin akses {s.health === "expired" ? "berakhir" : "berakhir pada"} <b>{fmtDay(s.refresh_expire_at)}</b>{s.estimated ? " (perkiraan)" : ""}
                   {s.days_left !== null && s.health !== "expired" && <> · <b>{s.days_left} hari lagi</b></>}
                   {s.health === "expired" && <> · hubungkan ulang toko ini</>}
                 </>
@@ -244,14 +248,19 @@ export default function DashboardClient() {
               {s.connected_at ? <>Terhubung sejak {fmtDay(s.connected_at)} · </> : null}diperpanjang otomatis setiap toko dipakai
             </div>
             {(s.health === "expiring" || s.health === "expired") && (
-              <div className="actions"><a className="btn primary" href="/api/shopee/connect">Hubungkan ulang</a></div>
+              <div className="actions"><a className="btn primary" href={PLATFORM[s.platform].connect}>Hubungkan ulang</a></div>
             )}
           </div>
         ))}
         <div className="card empty" style={{ display: "grid", placeItems: "center", gap: 8 }}>
           {d.shops.length === 0 && <span>Belum ada toko terhubung.</span>}
-          <a className="btn primary" href="/api/shopee/connect">+ Hubungkan toko</a>
-          <span className="meta" style={{ margin: 0 }}>Login sebagai seller toko yang dituju</span>
+          <div className="actions" style={{ justifyContent: "center" }}>
+            <a className="btn primary" href="/api/shopee/connect">+ Hubungkan Shopee</a>
+            {d.server.tiktok_configured && <a className="btn primary" href="/api/tiktok/connect">+ Hubungkan TikTok Shop</a>}
+          </div>
+          <span className="meta" style={{ margin: 0 }}>
+            Login sebagai seller toko yang dituju{d.server.tiktok_configured ? "" : " · TikTok Shop belum dikonfigurasi (isi TIKTOK_APP_KEY dan kawan-kawan di Vercel)"}
+          </span>
         </div>
       </div>
 
@@ -276,6 +285,7 @@ export default function DashboardClient() {
               <div className="head">
                 <span className="title">{j.label || j.job_id}</span>
                 <span className={`pill ${st.cls}`}>{st.label}</span>
+                <span className="pill mute">{PLATFORM[j.platform]?.label ?? j.platform}</span>
                 {j.kind === "rollback" && <span className="pill mute">rollback</span>}
                 <span className="spacer" />
                 <span className="meta" style={{ margin: 0 }}>{j.shop_name ?? `Toko ${j.shop_id}`} · {fmt(Date.parse(j.created_at))}</span>
@@ -289,7 +299,7 @@ export default function DashboardClient() {
                 <span><b style={{ color: "var(--ok)" }}>{j.ok}</b> berhasil</span>
                 <span><b style={{ color: j.failed ? "var(--bad)" : undefined }}>{j.failed}</b> gagal</span>
                 <span><b>{j.pending}</b> menunggu</span>
-                {j.pending > 0 && (j.status === "running" || j.status === "queued") && <span>± <b>{Math.max(1, Math.ceil(j.pending / 90))}</b> menit lagi</span>}
+                {j.pending > 0 && (j.status === "running" || j.status === "queued") && <span>± <b>{Math.max(1, Math.ceil(j.pending / (j.per_minute || 90)))}</b> menit lagi</span>}
                 <span className="id" style={{ marginLeft: "auto" }}>{j.job_id}</span>
               </div>
               {j.status === "paused" && (

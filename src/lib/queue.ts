@@ -533,7 +533,7 @@ async function pause(meta: JobMeta, reason: string) {
 export async function kickWorker(cfg: Config): Promise<void> {
   if (!cfg.mcpSecret) return;
   try {
-    await fetch(`${cfg.baseUrl}/api/worker/run`, {
+    await fetch(`${cfg.workerBaseUrl ?? cfg.baseUrl}/api/worker/run`, {
       method: "POST",
       headers: { authorization: `Bearer ${cfg.mcpSecret}` },
       signal: AbortSignal.timeout(8000),

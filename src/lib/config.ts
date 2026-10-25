@@ -11,6 +11,8 @@ export interface Config {
   env: keyof typeof HOSTS;
   host: string;
   baseUrl: string;
+  /** Alamat yang dipakai worker untuk memanggil dirinya sendiri. Docker: http://127.0.0.1:3000. Kosong = baseUrl. */
+  workerBaseUrl?: string;
   readOnly: boolean;
   mcpSecret: string;
 }
@@ -27,6 +29,7 @@ export function loadConfig(): Config {
     env,
     host: HOSTS[env],
     baseUrl: (process.env.APP_BASE_URL ?? (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000")).replace(/\/$/, ""),
+    workerBaseUrl: process.env.WORKER_BASE_URL?.replace(/\/$/, "") || undefined,
     readOnly: (process.env.SHOPEE_READ_ONLY ?? "false").toLowerCase() === "true",
     mcpSecret: process.env.MCP_SECRET ?? "",
   };

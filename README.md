@@ -39,6 +39,10 @@ Aktif bila `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` diisi (lih
 > TikTok memeriksa ulang (audit) produk yang judul/deskripsinya diubah, sehingga produk bisa sempat berstatus "Pending" sebelum kembali aktif.
 > Path endpoint 202309 untuk produk & promosi ditulis dari dokumentasi Partner Center namun **belum diuji ke toko nyata**; uji dengan 1-2 produk dan `dry_run` dulu.
 
+## Deploy di VPS (Docker)
+
+Untuk VPS yang sudah menjalankan aplikasi lain: lihat **[DEPLOY-VPS.md](DEPLOY-VPS.md)** (compose terisolasi, Redis internal, `deploy/preflight.sh` untuk cek bentrok, snippet Caddy).
+
 ## Deploy ke Vercel
 
 Panduan langkah demi langkah (GitHub → Vercel → Redis → Shopee → verifikasi → connector Claude → uji bertahap → troubleshooting) ada di **[DEPLOY.md](DEPLOY.md)**.
@@ -127,7 +131,7 @@ Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
 npm install
 cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
 npm run dev                     # http://localhost:3000/api/mcp?key=...
-npm test                        # 63 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi
+npm test                        # 67 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi, Redis nyata
 npm run typecheck
 ```
 

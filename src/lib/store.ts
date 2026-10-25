@@ -4,6 +4,7 @@
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import IORedis from "ioredis";
 import { Redis } from "@upstash/redis";
 
 export interface Store {
@@ -37,6 +38,37 @@ class RedisStore implements Store {
   async unlock(key: string) {
     await this.r.del(key);
   }
+}
+
+/** Redis lewat TCP (REDIS_URL), untuk deploy Docker/VPS. Lock memakai SET NX EX sungguhan. */
+class TcpRedisStore implements Store {
+  constructor(private r: IORedis) {}
+  async hget<T>(hash: string, field: string) {
+    const v = await this.r.hget(hash, field);
+    return v === null ? null : (JSON.parse(v) as T);
+  }
+  async hset(hash: string, field: string, value: unknown) {
+    await this.r.hset(hash, field, JSON.stringify(value));
+  }
+  async hsetMany(hash: string, entries: Record<string, unknown>) {
+    const flat: Record<string, string> = {};
+    for (const [k, v] of Object.entries(entries)) flat[k] = JSON.stringify(v);
+    if (Object.keys(flat).length) await this.r.hset(hash, flat);
+  }
+  async hgetall<T>(hash: string) {
+    const raw = await this.r.hgetall(hash);
+    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, JSON.parse(v) as T])) as Record<string, T>;
+  }
+  async lock(key: string, ttl: number) {
+    return (await this.r.set(key, "1", "EX", ttl, "NX")) === "OK";
+  }
+  async unlock(key: string) {
+    await this.r.del(key);
+  }
+}
+
+export function createTcpRedisStore(url: string): Store {
+  return new TcpRedisStore(new IORedis(url, { maxRetriesPerRequest: 2, enableReadyCheck: true, connectTimeout: 5000 }));
 }
 
 class FileStore implements Store {
@@ -82,6 +114,8 @@ export function getStore(): Store {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   if (url && token) {
     instance = new RedisStore(new Redis({ url, token }));
+  } else if (process.env.REDIS_URL) {
+    instance = createTcpRedisStore(process.env.REDIS_URL);
   } else if (process.env.VERCEL) {
     throw new Error(
       "Redis belum terpasang. Tambahkan integrasi Upstash Redis di Vercel (Storage) lalu redeploy.",
@@ -109,7 +143,7 @@ export const KEYS = {
 /** Jenis penyimpanan aktif, untuk ditampilkan di dashboard. */
 export function storeKind(): "redis" | "file" | "belum dipasang" {
   try {
-    return getStore() instanceof RedisStore ? "redis" : "file";
+    return getStore() instanceof FileStore ? "file" : "redis";
   } catch {
     return "belum dipasang";
   }

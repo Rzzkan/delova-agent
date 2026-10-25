@@ -1,0 +1,65 @@
+# Shopee Agent (Shopee + TikTok Shop) untuk VPS yang sudah menjalankan aplikasi lain (delova.id, wh.delova.id, threads.delova.id).
+# Anti-bentrok:
+#  - nama project/container/image/volume/network semuanya diawali "delova-shopee-agent" (unik)
+#  - TIDAK memakai port 80/443 (milik reverse proxy); hanya membuka 127.0.0.1:${AGENT_PORT:-3210}
+#  - Redis milik aplikasi ini berjalan di network internal sendiri: tidak membuka port dan tidak terlihat aplikasi lain
+#  - nama service = nama container (unik) supaya alias DNS tidak tabrakan bila disambung ke network proxy
+#  - batas memori/CPU supaya tidak mengganggu aplikasi lain
+# Mode proxy-di-Docker: lihat docker-compose.proxy.yml dan DEPLOY-VPS.md.
+name: delova-shopee-agent
+
+services:
+  delova-shopee-agent:
+    build: .
+    image: delova/shopee-agent:local
+    container_name: delova-shopee-agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      REDIS_URL: redis://delova-shopee-agent-redis:6379
+      WORKER_BASE_URL: http://127.0.0.1:3000 # worker memanggil dirinya sendiri di dalam container
+      WORKER_INTERVAL_SECONDS: "60" # jaring pengaman antrian (pengganti Vercel Cron)
+    ports:
+      - "127.0.0.1:${AGENT_PORT:-3210}:3000"
+    depends_on:
+      delova-shopee-agent-redis:
+        condition: service_healthy
+    networks:
+      default: {}
+      internal: {}
+    mem_limit: 384m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  delova-shopee-agent-redis:
+    image: redis:7-alpine
+    container_name: delova-shopee-agent-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    networks:
+      internal: {}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 192m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
+volumes:
+  redis-data: # berisi token toko Shopee/TikTok & antrian: ikut di-backup (lihat DEPLOY-VPS.md)
+
+networks:
+  internal:
+    internal: true # tanpa akses keluar/ke luar; hanya agent <-> redis

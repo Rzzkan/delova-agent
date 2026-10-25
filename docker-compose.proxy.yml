@@ -1,0 +1,18 @@
+# Dipakai HANYA bila reverse proxy (Caddy/Traefik/NPM) berjalan di dalam Docker dan harus menjangkau container ini
+# lewat network bersama. Menyambungkan HANYA service delova-shopee-agent (bukan Redis) ke network proxy,
+# dengan alias unik (sama dengan nama container) supaya tidak bentrok dengan container lain di network itu.
+#
+# Aktifkan dengan menambah di .env:
+#   PROXY_NETWORK=<nama network proxy, lihat: docker network ls>
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.proxy.yml
+services:
+  delova-shopee-agent:
+    networks:
+      proxy:
+        aliases:
+          - delova-shopee-agent
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:?isi PROXY_NETWORK di .env}

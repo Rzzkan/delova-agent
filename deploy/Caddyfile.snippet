@@ -1,0 +1,20 @@
+# TAMBAHKAN blok ini ke Caddyfile yang sudah ada (jangan menimpa blok delova.id / wh.delova.id / threads.delova.id).
+# Ganti agent.delova.id dengan subdomain pilihan Anda (buat A record ke IP VPS lebih dulu).
+# Lalu: docker exec <nama-container-caddy> caddy validate --config /etc/caddy/Caddyfile
+#       docker exec <nama-container-caddy> caddy reload  --config /etc/caddy/Caddyfile
+
+# --- Varian A: Caddy di Docker dan container ini sudah satu network dengannya (docker-compose.proxy.yml) ---
+agent.delova.id {
+	encode zstd gzip
+	reverse_proxy delova-shopee-agent:3000 {
+		flush_interval -1
+	}
+}
+
+# --- Varian B: Caddy berjalan di host (bukan container) ---
+# agent.delova.id {
+# 	encode zstd gzip
+# 	reverse_proxy 127.0.0.1:3210 {
+# 		flush_interval -1
+# 	}
+# }

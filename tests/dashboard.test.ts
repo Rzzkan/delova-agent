@@ -143,3 +143,43 @@ describe("password dashboard", () => {
     expect(loginCredential(SECRET)).toBe(SECRET);
   });
 });
+
+describe("flash sale mendatang", () => {
+  it("parsing Shopee & TikTok toleran terhadap field kosong", async () => {
+    const { parseShopeeSales, parseTikTokActivities, sortEntries } = await import("../src/lib/promos");
+    const s = parseShopeeSales({ flash_sale_list: [{ flash_sale_id: 7, start_time: 2000, end_time: 3000, enabled_item_count: 4 }, {}] }, "upcoming");
+    expect(s[0]).toMatchObject({ id: "7", start: 2000, end: 3000, product_count: 4, status: "upcoming" });
+    expect(s[1].start).toBeNull();
+    expect(parseShopeeSales(undefined, "upcoming")).toEqual([]);
+    const t = parseTikTokActivities({ activities: [{ id: "99999999999999999", title: "Harbolnas", begin_time: "5000", end_time: 6000 }] }, "ongoing");
+    expect(t[0]).toMatchObject({ id: "99999999999999999", title: "Harbolnas", start: 5000, end: 6000 });
+    const mixed = sortEntries([{ ...s[0], start: 9 }, { ...t[0], start: 99 }, { ...s[0], start: 1 }]);
+    expect(mixed[0].status).toBe("ongoing");
+    expect(mixed[1].start).toBe(1);
+  });
+});
+
+describe("upcomingPromos (Shopee, fetch dipalsukan)", () => {
+  it("menggabungkan akan datang + berlangsung per toko, error satu toko terisolasi", async () => {
+    const { upcomingPromos } = await import("../src/lib/promos");
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (input: any) => {
+      const u = new URL(String(input));
+      const shop = u.searchParams.get("shop_id");
+      const type = u.searchParams.get("timeslot_type");
+      if (!u.pathname.endsWith("get_shop_flash_sale_list")) return new Response("{}", { status: 404 });
+      if (shop === "2") return Response.json({ error: "error_auth", message: "no permission" });
+      const list = type === "1" ? [{ flash_sale_id: 11, start_time: now() + 3600, end_time: now() + 7200, enabled_item_count: 3 }] : [{ flash_sale_id: 10, start_time: now() - 60, end_time: now() + 600, item_count: 5 }];
+      return Response.json({ error: "", response: { flash_sale_list: list } });
+    }) as typeof fetch;
+    try {
+      const r = await upcomingPromos(cfg);
+      const s1 = r.shops.find((s) => s.shop_id === "1")!;
+      expect(s1.entries.map((e) => [e.id, e.status])).toEqual([["10", "ongoing"], ["11", "upcoming"]]);
+      expect(r.shops.find((s) => s.shop_id === "2")!.error).toBeTruthy();
+      expect(JSON.stringify(r)).not.toMatch(/SECRET-ACCESS|SECRET-REFRESH/);
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});

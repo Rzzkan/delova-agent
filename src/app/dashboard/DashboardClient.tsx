@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Overview } from "@/lib/dashboard";
+import type { PromosOverview } from "@/lib/promos";
 
 type Job = Overview["jobs"][number];
 type Shop = Overview["shops"][number];
@@ -77,6 +78,9 @@ export default function DashboardClient() {
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState("");
   const [open, setOpen] = useState<Record<string, Detail | "loading">>({});
+  const [promos, setPromos] = useState<PromosOverview | null>(null);
+  const [promosErr, setPromosErr] = useState("");
+  const [promosBusy, setPromosBusy] = useState(false);
   const [key, setKey] = useState("");
   const [loginErr, setLoginErr] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,6 +110,27 @@ export default function DashboardClient() {
       setStale(true);
     }
   }, []);
+
+  const loadPromos = useCallback(async (refresh = false) => {
+    setPromosBusy(true);
+    try {
+      const r = await fetch(`/api/dashboard/promos${refresh ? "?refresh=1" : ""}`, { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+      setPromos(j);
+      setPromosErr("");
+    } catch (e) {
+      setPromosErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPromosBusy(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (!authed) return;
+    void loadPromos();
+    const t = setInterval(() => { if (!document.hidden) void loadPromos(); }, 180000);
+    return () => clearInterval(t);
+  }, [authed, loadPromos]);
 
   const live = (data?.summary.active_jobs ?? 0) > 0;
   useEffect(() => {
@@ -262,6 +287,44 @@ export default function DashboardClient() {
             Login sebagai seller toko yang dituju{d.server.tiktok_configured ? "" : " · TikTok Shop belum dikonfigurasi (isi TIKTOK_APP_KEY dan kawan-kawan di file .env server)"}
           </span>
         </div>
+      </div>
+
+      <h2>Flash sale mendatang</h2>
+      <div className="row" style={{ marginBottom: 10 }}>
+        <span className="meta" style={{ margin: 0 }}>
+          Flash sale yang akan datang dan sedang berlangsung di tiap toko{promos ? ` · dicek ${new Date(promos.generated_at).toLocaleTimeString("id-ID", { timeZone: TZ })}` : ""}
+        </span>
+        <span className="spacer" />
+        <button disabled={promosBusy} onClick={() => loadPromos(true)}>{promosBusy ? "Memuat…" : "Muat ulang flash sale"}</button>
+      </div>
+      {promosErr && <div className="note">Gagal memuat flash sale: {promosErr}</div>}
+      <div className="shops">
+        {!promos && !promosErr && <div className="card empty">Memuat flash sale…</div>}
+        {promos && promos.shops.length === 0 && <div className="card empty">Belum ada toko terhubung.</div>}
+        {promos?.shops.map((p) => (
+          <div className="card shop" key={`${p.platform}:${p.shop_id}`}>
+            <div className="row">
+              <div>
+                <h3>{p.shop_name ?? "Toko tanpa nama"}</h3>
+                <span className="id">{PLATFORM[p.platform].label} · ID {p.shop_id}</span>
+              </div>
+              <span className="spacer" />
+              <span className={`pill ${p.error ? "bad" : p.entries.length ? "info" : "mute"}`}>{p.error ? "Gagal dimuat" : `${p.entries.length} jadwal`}</span>
+            </div>
+            {p.error && <div className="meta">{p.error}</div>}
+            {!p.error && p.entries.length === 0 && <div className="meta">Tidak ada flash sale terjadwal. Minta Claude: “buat flash sale …”.</div>}
+            {p.entries.map((e) => (
+              <div className="meta" key={`${e.status}:${e.id}`}>
+                <span className={`pill ${e.status === "ongoing" ? "ok" : "info"}`}>{e.status === "ongoing" ? "Berlangsung" : "Akan datang"}</span>{" "}
+                <b>{e.start ? fmt(e.start * 1000) : "waktu belum diketahui"}</b>
+                {e.end ? <> – {fmt(e.end * 1000)}</> : null}
+                {e.title ? <> · {e.title}</> : null}
+                {e.product_count !== null ? <> · {e.product_count} produk</> : null}
+                <span className="id"> · ID {e.id}</span>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       <h2>Antrian edit massal</h2>

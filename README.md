@@ -83,7 +83,7 @@ Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
 Buka `https://<domain>/dashboard` dan masuk dengan password dari `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`). Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
 (30 hari sejak token diperbarui, diperpanjang otomatis saat toko dipakai), tombol hubungkan/hubungkan ulang toko, serta progres job antrian
 secara langsung (berhasil/gagal/menunggu, ETA, alasan jeda, daftar gagal) dengan kontrol mulai, jeda, lanjutkan, batalkan, coba ulang, rollback, dan jalankan worker.
-Panel flash sale belum ada di dashboard; gunakan chat Claude.
+Panel **Flash sale mendatang** menampilkan jadwal flash sale yang akan datang dan sedang berlangsung di tiap toko (Shopee dan TikTok); membuat/mengubah flash sale tetap lewat chat Claude.
 
 ## Contoh percakapan
 
@@ -118,7 +118,7 @@ Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
 npm install
 cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
 npm run dev                     # http://localhost:3000/api/mcp?key=...
-npm test                        # 67 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi, Redis nyata
+npm test                        # 72 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi, Redis nyata
 npm run typecheck
 ```
 

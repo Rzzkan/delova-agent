@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { BTN, BTN_PRIMARY, Logo } from "./ui";
 
-export type Section = "ringkasan" | "flashsale" | "voucher";
+export type Section = "ringkasan" | "flashsale" | "kalender" | "voucher";
 
 const ShellContext = createContext<{ unauthorized: () => void }>({ unauthorized: () => {} });
 /** Dipanggil halaman anak bila API membalas 401, supaya kembali ke layar login. */
@@ -13,6 +13,7 @@ const NAV: { id: string; label: string; href: string; section?: Section; icon: s
   { id: "ringkasan", label: "Ringkasan", href: "/dashboard", section: "ringkasan", icon: "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" },
   { id: "toko", label: "Toko terhubung", href: "/dashboard#toko", icon: "M3 9l1-5h16l1 5M4 9v11h16V9M9 20v-6h6v6" },
   { id: "flashsale", label: "Flash sale", href: "/dashboard/flash-sale", section: "flashsale", icon: "M13 2L4 14h7l-1 8 9-12h-7l1-8z" },
+  { id: "kalender", label: "Kalender flash sale", href: "/dashboard/kalender", section: "kalender", icon: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
   { id: "voucher", label: "Voucher aktif", href: "/dashboard/voucher", section: "voucher", icon: "M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4V8zM13 6v12" },
   { id: "antrian", label: "Antrian edit massal", href: "/dashboard#antrian", icon: "M4 6h16M4 12h16M4 18h10" },
 ];

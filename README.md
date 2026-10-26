@@ -80,7 +80,7 @@ Claude ──queue_status──▶ "380/500 selesai, 2 gagal, ±2 menit lagi"
 
 ## Dashboard
 
-Dashboard memakai Tailwind CSS (tata letak admin: sidebar, kartu ringkasan, mode terang/gelap, responsif). Buka `https://<domain>/dashboard` dan masuk dengan password dari `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`). Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
+Halaman `/dashboard/kalender` menampilkan kalender bulanan per akun toko (Shopee dan TikTok dipisah): hari yang sudah punya flash sale terjadwal vs yang belum, zona WIB. Dashboard memakai Tailwind CSS (tata letak admin: sidebar, kartu ringkasan, mode terang/gelap, responsif). Buka `https://<domain>/dashboard` dan masuk dengan password dari `DASHBOARD_PASSWORD` (bila kosong: `MCP_SECRET`). Isinya: daftar toko terhubung + perkiraan tanggal berakhir izin akses
 (30 hari sejak token diperbarui, diperpanjang otomatis saat toko dipakai), tombol hubungkan/hubungkan ulang toko, serta progres job antrian
 secara langsung (berhasil/gagal/menunggu, ETA, alasan jeda, daftar gagal) dengan kontrol mulai, jeda, lanjutkan, batalkan, coba ulang, rollback, dan jalankan worker.
 Ringkasan menampilkan jumlah flash sale (akan datang / berlangsung) dan voucher aktif per toko, dihitung terpisah per toko; rincian berbentuk tabel ada di halaman `/dashboard/flash-sale` dan `/dashboard/voucher` (jadwal flash sale Shopee dan TikTok); membuat/mengubah flash sale tetap lewat chat Claude. Tabel voucher memuat kode, diskon, min. belanja, pemakaian, dan tanggal berakhir; voucher TikTok Shop belum didukung.
@@ -118,7 +118,7 @@ Untuk lebih dari beberapa puluh produk Claude memakai antrian (lihat di atas).
 npm install
 cp .env.example .env.local      # isi; tanpa Redis, data disimpan di .data/ (di-gitignore)
 npm run dev                     # http://localhost:3000/api/mcp?key=...
-npm test                        # 74 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi, Redis nyata
+npm test                        # 75 tes: signing (Shopee & TikTok), SEO, auth, bulk, antrian, dashboard, promosi, Redis nyata
 npm run typecheck
 ```
 

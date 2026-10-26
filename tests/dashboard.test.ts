@@ -219,3 +219,24 @@ describe("ringkasan per toko", () => {
     expect(summarizeVouchers([], n)).toEqual({ active: 0, expiring: 0 });
   });
 });
+
+describe("kalender flash sale", () => {
+  it("tanggal WIB, rentang multi-hari, dan tengah malam", async () => {
+    const { dayKey, daysCovered, scheduleByDay, monthCells, monthStats } = await import("../src/lib/calendar");
+    const t = Date.UTC(2026, 10, 11, 17, 30) / 1000; // 11 Nov 17:30 UTC = 12 Nov 00:30 WIB
+    expect(dayKey(t)).toBe("2026-11-12");
+    expect(daysCovered(t, t + 3600)).toEqual(["2026-11-12"]);
+    const midnight = Date.UTC(2026, 10, 12, 17, 0) / 1000; // 13 Nov 00:00 WIB
+    expect(daysCovered(t, midnight)).toEqual(["2026-11-12"]); // berakhir tepat 00:00 tidak masuk hari berikut
+    expect(daysCovered(t, midnight + 86400)).toEqual(["2026-11-12", "2026-11-13"]);
+    expect(daysCovered(null, 5)).toEqual([]);
+    const map = scheduleByDay([{ start: t, end: t + 3600 }, { start: t + 60, end: t + 7200 }]);
+    expect(map.get("2026-11-12")).toHaveLength(2);
+    const cells = monthCells(2026, 10); // Nov 2026 mulai Minggu -> 6 sel awal Okt
+    expect(cells.length % 7).toBe(0);
+    expect(cells[0].key).toBe("2026-10-26");
+    expect(cells.filter((c) => c.inMonth)).toHaveLength(30);
+    expect(monthStats(map, 2026, 10, "2026-11-10")).toEqual({ scheduled: 1, free: 20 });
+    expect(monthStats(map, 2026, 10, "2026-11-13")).toEqual({ scheduled: 0, free: 18 });
+  });
+});

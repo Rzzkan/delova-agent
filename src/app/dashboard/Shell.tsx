@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { BTN, BTN_PRIMARY, Logo } from "./ui";
+import { Logo } from "./ui";
 
 export type Section = "ringkasan" | "flashsale" | "kalender" | "voucher";
 
@@ -19,90 +19,27 @@ const NAV: { id: string; label: string; href: string; section?: Section; icon: s
 ];
 
 export default function Shell({ active, children }: { active: Section; children: ReactNode }) {
-  const [authed, setAuthed] = useState<boolean | null>(null);
   const [dark, setDark] = useState(false);
   const [menu, setMenu] = useState(false);
-  const [key, setKey] = useState("");
-  const [loginErr, setLoginErr] = useState("");
 
-  const probe = useCallback(async () => {
-    try {
-      const r = await fetch("/api/dashboard/session", { cache: "no-store" });
-      setAuthed(r.ok);
-    } catch {
-      setAuthed(false);
-    }
-  }, []);
-  useEffect(() => void probe(), [probe]);
-
-  useEffect(() => {
-    let d = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    try {
-      const t = localStorage.getItem("da_theme");
-      if (t) d = t === "dark";
-    } catch {}
-    setDark(d);
-  }, []);
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
+  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
   const toggleTheme = () =>
     setDark((v) => {
+      document.documentElement.classList.toggle("dark", !v);
       try { localStorage.setItem("da_theme", v ? "light" : "dark"); } catch {}
       return !v;
     });
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault();
-    setLoginErr("");
-    try {
-      const r = await fetch("/api/dashboard/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: key }) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
-      setKey("");
-      setAuthed(true);
-    } catch (err) {
-      setLoginErr(err instanceof Error ? err.message : String(err));
-    }
-  }
+  const toLogin = useCallback(() => {
+    window.location.href = "/login";
+  }, []);
   async function logout() {
     await fetch("/api/dashboard/logout", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => {});
-    setAuthed(false);
-  }
-
-  if (authed === null) return <div className="grid min-h-screen place-items-center text-sm text-gray-500">Memuat…</div>;
-
-  if (!authed) {
-    return (
-      <div className="grid min-h-screen place-items-center px-4">
-        <form onSubmit={login} className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-7 shadow-theme-md dark:border-gray-800 dark:bg-gray-900">
-          <div className="mb-5 flex items-center gap-3">
-            <Logo />
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Delova Agent</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Masuk ke dashboard</p>
-            </div>
-          </div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="pw">Password</label>
-          <input
-            id="pw"
-            type="password"
-            autoFocus
-            autoComplete="current-password"
-            placeholder="Masukkan password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 text-sm text-gray-800 shadow-theme-xs outline-none placeholder:text-gray-400 focus:border-brand-300 focus:ring-4 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white"
-          />
-          <p className="mt-2 min-h-5 text-sm text-error-600">{loginErr}</p>
-          <button type="submit" disabled={!key} className={`${BTN} ${BTN_PRIMARY} mt-2 h-11 w-full`}>Masuk</button>
-        </form>
-      </div>
-    );
+    toLogin();
   }
 
   return (
-    <ShellContext.Provider value={{ unauthorized: () => setAuthed(false) }}>
+    <ShellContext.Provider value={{ unauthorized: toLogin }}>
       <div className="min-h-screen">
         {menu && <div className="fixed inset-0 z-30 bg-gray-900/50 lg:hidden" onClick={() => setMenu(false)} />}
         <aside className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-gray-200 bg-white px-5 py-6 transition-transform dark:border-gray-800 dark:bg-gray-900 lg:translate-x-0 ${menu ? "translate-x-0" : "-translate-x-full"}`}>

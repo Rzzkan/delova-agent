@@ -36,6 +36,11 @@ export function readCookie(req: Request, name: string): string {
   return "";
 }
 
+/** Cek nilai cookie sesi (dipakai halaman server untuk mengarahkan ke /login atau /dashboard). */
+export function hasSession(cookieValue: string | undefined, secret: string): boolean {
+  return secret.length >= 16 && !!cookieValue && safeEqual(cookieValue, sessionToken(secret));
+}
+
 /** Terima cookie sesi dashboard, atau Bearer/?key= seperti endpoint lain. */
 export function isAuthed(req: Request, secret: string): boolean {
   if (secret.length < 16) return false;

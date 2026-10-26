@@ -240,3 +240,13 @@ describe("kalender flash sale", () => {
     expect(monthStats(map, 2026, 10, "2026-11-13")).toEqual({ scheduled: 0, free: 18 });
   });
 });
+
+describe("hasSession", () => {
+  it("hanya cookie sesi yang sah dan rahasia >= 16 karakter", async () => {
+    const { hasSession } = await import("../src/lib/dashboard");
+    expect(hasSession(sessionToken(SECRET), SECRET)).toBe(true);
+    expect(hasSession("salah", SECRET)).toBe(false);
+    expect(hasSession(undefined, SECRET)).toBe(false);
+    expect(hasSession(sessionToken("pendek"), "pendek")).toBe(false);
+  });
+});

@@ -1,4 +1,2 @@
 * { box-sizing: border-box; }
-body { margin: 0; background: #f9fafb; color: #1d2939; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
-@media (prefers-color-scheme: dark) { body { background: #0c111d; color: #e4e7ec; } a { color: #9cb9ff; } }
-.narrow { max-width: 40rem; margin: 4rem auto; padding: 0 1rem; }
+body { margin: 0; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }

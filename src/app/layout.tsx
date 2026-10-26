@@ -5,7 +5,7 @@ export const metadata = { title: "Delova Agent", robots: { index: false, follow:
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

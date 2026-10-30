@@ -233,49 +233,66 @@ function Overview() {
       </section>
 
       <section id="toko" className="scroll-mt-24">
-            <PageTitle title="Toko terhubung" sub="Masa berlaku izin akses tiap toko" />
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {d.shops.map((s: Shop) => (
-                <Card key={`${s.platform}:${s.shop_id}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0">
-                      <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">{s.shop_name ?? "Toko tanpa nama"}</h3>
-                      <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{PLATFORM[s.platform].label}{s.region ? ` · region ${s.region}` : ""} · ID {s.shop_id}</span>
-                    </div>
-                    <span className="flex-1" />
-                    <Badge tone={HEALTH[s.health].cls}>{HEALTH[s.health].label}</Badge>
-                  </div>
-                  <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                    {s.refresh_expire_at ? (
-                      <>
-                        Izin akses {s.health === "expired" ? "berakhir" : "berakhir pada"} <b className="font-semibold text-gray-800 dark:text-gray-200">{fmtDay(s.refresh_expire_at)}</b>{s.estimated ? " (perkiraan)" : ""}
-                        {s.days_left !== null && s.health !== "expired" && <> · <b className="font-semibold text-gray-800 dark:text-gray-200">{s.days_left} hari lagi</b></>}
-                        {s.health === "expired" && <> · hubungkan ulang toko ini</>}
-                      </>
-                    ) : (
-                      <>Tanggal berakhir belum tercatat; akan terisi otomatis saat toko dipakai berikutnya.</>
-                    )}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    {s.connected_at ? <>Terhubung sejak {fmtDay(s.connected_at)} · </> : null}diperpanjang otomatis setiap toko dipakai
-                  </p>
-                  {(s.health === "expiring" || s.health === "expired") && (
-                    <a className={`${BTN} ${BTN_PRIMARY} mt-4`} href={PLATFORM[s.platform].connect}>Hubungkan ulang</a>
-                  )}
-                </Card>
-              ))}
-              <div className="grid place-items-center gap-3 rounded-2xl border border-dashed border-gray-300 p-6 text-center dark:border-gray-700">
-                {d.shops.length === 0 && <span className="text-sm text-gray-500 dark:text-gray-400">Belum ada toko terhubung.</span>}
-                <div className="flex flex-wrap justify-center gap-2">
-                  <a className={`${BTN} ${BTN_PRIMARY}`} href="/api/shopee/connect">+ Hubungkan Shopee</a>
-                  {d.server.tiktok_configured && <a className={`${BTN} ${BTN_PRIMARY}`} href="/api/tiktok/connect">+ Hubungkan TikTok Shop</a>}
+        <PageTitle title="Toko terhubung" sub="Masa berlaku izin akses tiap toko, dipisah per marketplace" />
+        <div className="space-y-8">
+          {(["shopee", "tiktok"] as const).map((pf) => {
+            const list = d.shops.filter((x) => x.platform === pf);
+            const soon = list.filter((x) => x.health === "expiring" || x.health === "expired").length;
+            const canConnect = pf === "shopee" || d.server.tiktok_configured;
+            return (
+              <div key={pf}>
+                <div className="mb-3 flex flex-wrap items-center gap-2.5">
+                  <span className={`grid size-8 place-items-center rounded-lg text-xs font-bold text-white ${pf === "shopee" ? "bg-orange-500" : "bg-gray-900 dark:bg-gray-700"}`}>{pf === "shopee" ? "S" : "T"}</span>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">{PLATFORM[pf].label}</h3>
+                  <Badge tone="mute">{list.length} toko</Badge>
+                  {soon > 0 && <Badge tone="warn">{soon} perlu perhatian</Badge>}
+                  <span className="flex-1" />
+                  {canConnect && <a className={`${BTN} ${BTN_PRIMARY}`} href={PLATFORM[pf].connect}>+ Hubungkan {PLATFORM[pf].label}</a>}
                 </div>
-                <span className="text-xs text-gray-400">
-                  Login sebagai seller toko yang dituju{d.server.tiktok_configured ? "" : " · TikTok Shop belum dikonfigurasi (isi TIKTOK_APP_KEY dan kawan-kawan di file .env server)"}
-                </span>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {list.map((s: Shop) => (
+                    <Card key={`${s.platform}:${s.shop_id}`}>
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-base font-semibold text-gray-900 dark:text-white">{s.shop_name ?? "Toko tanpa nama"}</h3>
+                          <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{PLATFORM[s.platform].label}{s.region ? ` · region ${s.region}` : ""} · ID {s.shop_id}</span>
+                        </div>
+                        <span className="flex-1" />
+                        <Badge tone={HEALTH[s.health].cls}>{HEALTH[s.health].label}</Badge>
+                      </div>
+                      <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                        {s.refresh_expire_at ? (
+                          <>
+                            Izin akses {s.health === "expired" ? "berakhir" : "berakhir pada"} <b className="font-semibold text-gray-800 dark:text-gray-200">{fmtDay(s.refresh_expire_at)}</b>{s.estimated ? " (perkiraan)" : ""}
+                            {s.days_left !== null && s.health !== "expired" && <> · <b className="font-semibold text-gray-800 dark:text-gray-200">{s.days_left} hari lagi</b></>}
+                            {s.health === "expired" && <> · hubungkan ulang toko ini</>}
+                          </>
+                        ) : (
+                          <>Tanggal berakhir belum tercatat; akan terisi otomatis saat toko dipakai berikutnya.</>
+                        )}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {s.connected_at ? <>Terhubung sejak {fmtDay(s.connected_at)} · </> : null}diperpanjang otomatis setiap toko dipakai
+                      </p>
+                      {(s.health === "expiring" || s.health === "expired") && (
+                        <a className={`${BTN} ${BTN_PRIMARY} mt-4`} href={PLATFORM[s.platform].connect}>Hubungkan ulang</a>
+                      )}
+                    </Card>
+                  ))}
+                  {list.length === 0 && (
+                    <div className="grid place-items-center gap-2 rounded-2xl border border-dashed border-gray-300 p-6 text-center dark:border-gray-700 md:col-span-2 xl:col-span-3">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Belum ada toko {PLATFORM[pf].label} terhubung.</span>
+                      <span className="text-xs text-gray-400">
+                        {canConnect ? "Login sebagai seller toko yang dituju." : "TikTok Shop belum dikonfigurasi (isi TIKTOK_APP_KEY dan kawan-kawan di file .env server)."}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
+            );
+          })}
+        </div>
+      </section>
 
       <section id="flashsale" className="scroll-mt-24">
         <PageTitle

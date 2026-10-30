@@ -4,7 +4,7 @@ import { loadConfig } from "@/lib/config";
 import { COOKIE, hasSession } from "@/lib/dashboard";
 import LoginForm from "./LoginForm";
 
-export const metadata = { title: "Masuk · Delova Agent", robots: { index: false, follow: false } };
+export const metadata = { title: "Masuk · Marketplace Agent", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {

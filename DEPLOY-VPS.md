@@ -1,11 +1,11 @@
-# Deploy Delova Agent di VPS (Docker), berdampingan dengan aplikasi lain
+# Deploy Marketplace Agent di VPS (Docker), berdampingan dengan aplikasi lain
 
 Panduan untuk VPS yang sudah menjalankan **delova.id** (toko), **wh.delova.id** (gudang, MySQL), dan **threads.delova.id** (Threads Hub, `127.0.0.1:3100`), dengan Caddy memegang port 80/443.
-Delova Agent (Shopee + TikTok Shop) ditambahkan sebagai **project Docker terpisah** yang tidak menyentuh milik aplikasi lain.
+Marketplace Agent (Shopee + TikTok Shop) ditambahkan sebagai **project Docker terpisah** yang tidak menyentuh milik aplikasi lain.
 
 ## 1. Apa yang berjalan, dan mengapa tidak bentrok
 
-| Hal | Nilai Delova Agent | Mengapa aman |
+| Hal | Nilai Marketplace Agent | Mengapa aman |
 |---|---|---|
 | Project compose | `delova-agent` | Nama project unik; network & volume otomatis berawalan ini |
 | Container | `delova-agent`, `delova-agent-redis` | Nama unik; `preflight.sh` memeriksa pemakaian ganda |

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import "./globals.css";
 
-export const metadata = { title: "Delova Agent", robots: { index: false, follow: false } };
+export const metadata = { title: "Marketplace Agent", robots: { index: false, follow: false } };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

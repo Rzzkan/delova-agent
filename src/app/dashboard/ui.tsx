@@ -61,7 +61,7 @@ export function Stat({ label, value, tone }: { label: string; value: number; ton
 }
 export function Logo() {
   return (
-    <div className="grid size-10 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white">D</div>
+    <div className="grid size-10 place-items-center rounded-xl bg-brand-500 text-lg font-bold text-white">M</div>
   );
 }
 

@@ -1,4 +1,4 @@
-# Delova Agent (Shopee + TikTok Shop) untuk VPS yang sudah menjalankan aplikasi lain (delova.id, wh.delova.id, threads.delova.id).
+# Marketplace Agent (Shopee + TikTok Shop) untuk VPS yang sudah menjalankan aplikasi lain (delova.id, wh.delova.id, threads.delova.id).
 # Anti-bentrok:
 #  - nama project/container/image/volume/network semuanya diawali "delova-agent" (unik)
 #  - TIDAK memakai port 80/443 (milik reverse proxy); hanya membuka 127.0.0.1:${AGENT_PORT:-3210}

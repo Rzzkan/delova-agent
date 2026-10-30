@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const handler = createMcpHandler(
   (server) => registerTools(server),
-  { serverInfo: { name: "delova-agent", version: "0.3.0" } },
+  { serverInfo: { name: "marketplace-agent", version: "0.3.0" } },
   { basePath: "/api", maxDuration: 60, disableSse: true, verboseLogs: false },
 );
 
@@ -16,7 +16,7 @@ async function guarded(req: Request): Promise<Response> {
   if (!isAuthorized(req, loadConfig().mcpSecret)) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
-      headers: { "content-type": "application/json", "www-authenticate": 'Bearer realm="delova-agent"' },
+      headers: { "content-type": "application/json", "www-authenticate": 'Bearer realm="marketplace-agent"' },
     });
   }
   return handler(req);

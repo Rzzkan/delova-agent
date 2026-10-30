@@ -46,7 +46,7 @@ export default function Shell({ active, children }: { active: Section; children:
           <div className="mb-8 flex items-center gap-3 px-1">
             <Logo />
             <div className="leading-tight">
-              <div className="text-lg font-semibold text-gray-900 dark:text-white">Delova Agent</div>
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">Marketplace Agent</div>
               <div className="text-xs text-gray-500 dark:text-gray-400">Shopee &amp; TikTok Shop</div>
             </div>
           </div>

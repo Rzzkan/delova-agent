@@ -29,7 +29,7 @@ export default function LoginForm() {
         <div className="mb-5 flex items-center gap-3">
           <Logo />
           <div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Delova Agent</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Marketplace Agent</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Masuk ke dashboard</p>
           </div>
         </div>

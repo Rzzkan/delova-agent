@@ -26,9 +26,9 @@ export async function timeSlots(c: ShopeeClient, shopId: number, daysAhead = 7) 
 /** kind: 0 semua, 1 akan datang, 2 berlangsung, 3 selesai. */
 export async function listSales(c: ShopeeClient, shopId: number, kind = 0, offset = 0, count = 50) {
   const r = await c.get(shopId, `${F}/get_shop_flash_sale_list`, {
-    timeslot_type: kind,
-    pagination_offset: offset,
-    pagination_entry_count: count,
+    type: kind, // nama field resmi: type (bukan timeslot_type)
+    offset,
+    limit: count,
     start_time: now() - 30 * 86400,
     end_time: now() + 60 * 86400,
   });

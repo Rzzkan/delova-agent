@@ -166,7 +166,8 @@ describe("upcomingPromos (Shopee, fetch dipalsukan)", () => {
     globalThis.fetch = (async (input: any) => {
       const u = new URL(String(input));
       const shop = u.searchParams.get("shop_id");
-      const type = u.searchParams.get("timeslot_type");
+      const type = u.searchParams.get("type");
+      if (u.searchParams.has("timeslot_type") || u.searchParams.has("pagination_offset") || !u.searchParams.has("offset") || !u.searchParams.has("limit")) return Response.json({ error: "shop_flash_sale_param_error", message: "The Wrong parameters" });
       if (!u.pathname.endsWith("get_shop_flash_sale_list")) return new Response("{}", { status: 404 });
       if (shop === "2") return Response.json({ error: "error_auth", message: "no permission" });
       const list = type === "1" ? [{ flash_sale_id: 11, start_time: now() + 3600, end_time: now() + 7200, enabled_item_count: 3 }] : [{ flash_sale_id: 10, start_time: now() - 60, end_time: now() + 600, item_count: 5 }];

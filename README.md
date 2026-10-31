@@ -169,3 +169,14 @@ Menu **Penjualan & traffic** (Shopee, per toko, 7/14/30 hari): omzet, pesanan, n
 **Insight AI** memakai API kompatibel OpenAI (default Kenari). Atur dari dashboard: menu **Pengaturan AI** — alamat API (ada preset Kenari/OpenRouter/Groq/Gemini), kunci API, tombol **Muat daftar model** (dropdown model yang tersedia), dan **Tes koneksi** (memakai isi formulir walau belum disimpan). Kunci disimpan terenkripsi (AES-256-GCM, diturunkan dari `MCP_SECRET`) dan tidak pernah dikirim balik ke browser; bila `MCP_SECRET` diganti, kunci harus diisi ulang. Pengaturan di dashboard menimpa `.env`; isian `.env` (`LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL`) hanya cadangan.
 
 Yang dikirim ke penyedia hanya angka agregat dan nama produk, tanpa data pembeli. Hasil di-cache 6 jam.
+
+## Skor AI & sinkronisasi aturan baku
+
+Skor listing AI (`ai_score_listing`, tombol "Nilai dengan AI" di detail produk) memakai rubrik di `src/lib/rubric.ts`, yang disalin dari dokumen **"Aturan Kerja Tim AI Delova (Baku)"**. Parameter yang diperiksa kode (format judul baku, panjang, klaim terlarang, scarf ≠ batik, aturan Kids) dan yang dinilai AI (kata kunci natural, karakter brand, kelengkapan, tanpa data karangan) ditandai di `PARAMS`; parameter di luar dokumen baku ditandai `source: "tambahan"`.
+
+**Bila aturan baku berubah** (alur yang ditetapkan Aditya):
+1. Caca mendelegasikan satu karyawan (pengelola sistem agent marketplace) untuk menyelaraskan sistem ini.
+2. Karyawan memperbarui `PARAMS`, `WEIGHT`, dan pola `BANNED`/`KIDS_*` di `src/lib/rubric.ts`, serta `RUBRIC_DATE` ke tanggal revisi dokumen. `rubricVersion()` ikut berubah sehingga semua cache skor lama otomatis tidak dipakai.
+3. Jalankan `npm test`, deploy, lalu cek dengan tool MCP `rubrik_skor` (versi, tanggal acuan, parameter).
+4. Laporkan ke Aditya: aturan apa yang berubah dan bagian sistem mana yang disesuaikan.
+Cek kesesuaian kapan saja: bandingkan `acuan_dokumen` pada `rubrik_skor` dengan tanggal revisi terakhir dokumen baku.

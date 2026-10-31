@@ -254,3 +254,15 @@ export async function productShops(clients: { shopee?: ShopeeClient; tiktok?: Ti
   if (!clients.tiktok) return [];
   return (await clients.tiktok.shops()).map((s: any) => ({ shop_id: String(s.shop_id), shop_name: (s.shop_name as string | undefined) ?? null }));
 }
+
+// ---------- skor AI ----------
+import { aiScoreListing, type AiScore } from "./aiScore";
+import { brandOf } from "./scoring";
+
+export async function aiScoreProduct(clients: { shopee?: ShopeeClient; tiktok?: TikTokClient }, platform: Platform, shopId: string, id: string, fresh = false): Promise<AiScore & { cached: boolean; brand: string }> {
+  const [shops, d] = await Promise.all([productShops(clients, platform), getDetail(clients, platform, shopId, id)]);
+  const brand = brandOf(shops.find((s) => s.shop_id === shopId)?.shop_name);
+  const text = platform === "tiktok" ? d.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : d.description;
+  const r = await aiScoreListing({ platform, shop_id: shopId, product_id: id, brand, name: d.name, description: text, limits: d.limits }, { fresh });
+  return { ...r, brand };
+}

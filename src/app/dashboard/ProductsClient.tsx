@@ -142,7 +142,7 @@ function Page({ platform }: { platform: Platform }) {
           </div>
         </section>
       )}
-      {view && <DetailModal id={view} shop={shop} api={api} onClose={() => setView(null)} />}
+      {view && <DetailModal id={view} shop={shop} platform={platform} api={api} onClose={() => setView(null)} />}
     </>
   );
 }
@@ -186,7 +186,7 @@ function ScoreBox({ label, s }: { label: string; s: Score }) {
   );
 }
 
-function DetailModal({ id, shop, api, onClose }: { id: string; shop: string; api: (qs: string) => Promise<any>; onClose: () => void }) {
+function DetailModal({ id, shop, platform, api, onClose }: { id: string; shop: string; platform: Platform; api: (qs: string) => Promise<any>; onClose: () => void }) {
   const [d, setD] = useState<Detail | null>(null);
   const [err, setErr] = useState("");
   useEffect(() => { api(`view=detail&shop=${shop}&id=${id}`).then(setD).catch((e) => setErr(e.message)); }, [api, shop, id]);
@@ -199,10 +199,61 @@ function DetailModal({ id, shop, api, onClose }: { id: string; shop: string; api
           <div><div className="text-xs text-gray-500">Nama · {d.name.length} karakter</div><div className="font-medium text-gray-900 dark:text-white">{d.name}</div><div className="font-mono text-xs text-gray-400">ID {d.id}</div></div>
           <div className="grid gap-3 sm:grid-cols-2"><ScoreBox label="Skor judul" s={d.title} /><ScoreBox label="Skor deskripsi" s={d.desc} /></div>
           <div className="text-sm text-gray-700 dark:text-gray-300">Skor gabungan: <b>{d.total}</b>/100</div>
+          <AiScorePanel platform={platform} shop={shop} id={id} />
           <div><div className="mb-1 text-xs text-gray-500">Deskripsi {d.description_format === "html" && "(HTML)"}</div><div className="max-h-60 overflow-y-auto whitespace-pre-line rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-400">{d.description || "(kosong)"}</div></div>
           <p className="text-xs text-gray-500 dark:text-gray-400">Dashboard hanya untuk melihat dan menyetujui. Perubahan judul/deskripsi diusulkan lewat chat Claude, lalu disetujui di menu Persetujuan.</p>
         </div>
       )}
     </Modal>
+  );
+}
+
+interface AiRes {
+  total: number; grade: string; title_score: number; desc_score: number; summary: string; issues: string[]; suggested_title?: string; cached: boolean; ai_ok: boolean; ai_error?: string; model: string; rubric: string; created_at: string;
+  checks: { id: string; label: string; part: string; by: string; source: string; score: number; max: number; note: string }[];
+}
+
+function AiScorePanel({ platform, shop, id }: { platform: Platform; shop: string; id: string }) {
+  const [r, setR] = useState<AiRes | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  async function run(fresh: boolean) {
+    setBusy(true); setErr("");
+    try {
+      const res = await fetch("/api/dashboard/aiscore", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ platform, shop, id, fresh }) });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? res.statusText);
+      setR(j);
+    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+  }
+  return (
+    <div className="rounded-xl border border-brand-200 p-3 dark:border-gray-800">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Skor AI (rubrik baku Delova)</span>
+        {r && <Badge tone={GRADE_TONE[r.grade]}>{r.total} · {r.grade}</Badge>}
+        <button className={`${BTN} ${BTN_DEFAULT} ml-auto`} disabled={busy} onClick={() => run(Boolean(r))}>{busy ? "Menilai…" : r ? "Nilai ulang" : "Nilai dengan AI"}</button>
+      </div>
+      {err && <p className="mt-2 break-words text-xs text-error-600">{err}</p>}
+      {r && (
+        <div className="mt-3 space-y-3 text-xs">
+          {!r.ai_ok && <p className="text-warning-600">AI tidak tersedia ({r.ai_error}). Hanya parameter lokal yang dinilai.</p>}
+          {r.summary && <p className="text-gray-700 dark:text-gray-300">{r.summary}</p>}
+          <div className="text-gray-500">Judul {r.title_score} · Deskripsi {r.desc_score} · model {r.model} · rubrik {r.rubric}{r.cached ? " · dari cache" : ""}</div>
+          <table className="w-full">
+            <tbody>
+              {r.checks.map((c) => (
+                <tr key={c.id} className="border-t border-gray-100 align-top dark:border-gray-800">
+                  <td className="py-1 pr-2 text-gray-700 dark:text-gray-300">{c.label}<div className="text-[10px] text-gray-400">{c.part}{c.by === "ai" ? " · AI" : ""}{c.source === "tambahan" ? " · tambahan" : ""}</div></td>
+                  <td className="whitespace-nowrap py-1 pr-2 tabular-nums">{c.score}/{c.max}</td>
+                  <td className="py-1 text-gray-500">{c.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {r.issues.length > 0 && <ul className="list-disc space-y-0.5 pl-5 text-gray-600 dark:text-gray-400">{r.issues.map((x) => <li key={x}>{x}</li>)}</ul>}
+          {r.suggested_title && <div className="rounded-lg bg-gray-50 p-2 dark:bg-white/5"><div className="text-gray-500">Usulan judul (minta Claude: "ajukan perubahan judul produk {id}")</div><div className="font-medium text-gray-900 dark:text-white">{r.suggested_title}</div></div>}
+        </div>
+      )}
+    </div>
   );
 }

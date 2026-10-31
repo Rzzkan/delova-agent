@@ -555,4 +555,23 @@ export function registerTools(
       return ok({ title: a.title === undefined ? undefined : scoreTitle(a.title, lim), description: a.description === undefined ? undefined : scoreDescription(a.description, lim) });
     }) as any,
   );
+
+  server.tool(
+    "ai_score_listing",
+    "Skor listing (judul + deskripsi) satu produk memakai AI Kenari dengan rubrik baku Delova (format judul baku, klaim terlarang, aturan kain, karakter brand). Hasil: skor per parameter, masalah, dan usulan judul. Untuk menerapkan usulan, lanjutkan dengan propose_changes.",
+    { platform: z.enum(["shopee", "tiktok"]), shop_id: z.string(), product_id: z.string(), fresh: z.boolean().optional() },
+    (async (a: any) => {
+      const { makeClients, aiScoreProduct } = await import("./productAdmin");
+      return ok(await aiScoreProduct(makeClients(loadConfig()), a.platform, a.shop_id, a.product_id, a.fresh));
+    }) as any,
+  );
+  server.tool(
+    "rubrik_skor",
+    "Tampilkan rubrik skor listing yang sedang dipakai sistem (versi, tanggal acuan dokumen baku, parameter dan bobot). Bandingkan tanggal ini dengan revisi terakhir dokumen 'Aturan Kerja Tim AI Delova (Baku)'; bila dokumen lebih baru, rubrik harus diperbarui (src/lib/rubric.ts).",
+    {},
+    (async () => {
+      const r = await import("./rubric");
+      return ok({ version: r.rubricVersion(), acuan_dokumen: r.RUBRIC_DATE, dokumen: `https://docs.google.com/document/d/${r.BAKU_DOC_ID}/edit`, parameter: r.PARAMS });
+    }) as any,
+  );
 }

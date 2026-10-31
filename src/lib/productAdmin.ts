@@ -13,6 +13,7 @@ import * as sp from "./products";
 import * as tp from "./tiktokProducts";
 import { ShopeeClient } from "./shopee";
 import { TikTokClient } from "./tiktok";
+import { Price, shopeePrice, tiktokPrice } from "./prices";
 import { Score, combined, scoreDescription, scoreTitle } from "./scoring";
 import { KEYS, getStore } from "./store";
 
@@ -24,6 +25,7 @@ export interface ProductRow {
   status: string | null;
   title_score?: number;
   title_grade?: string;
+  price?: Price;
 }
 export interface ProductDetail extends ProductRow {
   description: string; // Shopee: teks; TikTok: HTML
@@ -91,7 +93,7 @@ export async function listProducts(
     const byId = new Map(info.map((i) => [Number(i.item_id), i]));
     const items = ids.flatMap((id) => {
       const i = byId.get(id);
-      return i ? [withScore({ id: String(id), name: String(i.item_name ?? ""), status: (i.item_status as string) ?? null }, SH)] : [];
+      return i ? [withScore({ id: String(id), name: String(i.item_name ?? ""), status: (i.item_status as string) ?? null, price: shopeePrice(i) }, SH)] : [];
     });
     return { items, next, total };
   }
@@ -100,7 +102,7 @@ export async function listProducts(
   const q = o.q?.trim().toLowerCase();
   const items = r.items
     .filter((i: { item_name: string }) => !q || i.item_name.toLowerCase().includes(q))
-    .map((i: { item_id: string; item_name: string; item_status?: string }) => withScore({ id: i.item_id, name: i.item_name, status: i.item_status ?? null }, seo.TIKTOK_LIMITS));
+    .map((i: { item_id: string; item_name: string; item_status?: string; price?: Price }) => withScore({ id: i.item_id, name: i.item_name, status: i.item_status ?? null, price: i.price }, seo.TIKTOK_LIMITS));
   return { items, next: r.nextPageToken ?? null, total: r.total ?? null };
 }
 

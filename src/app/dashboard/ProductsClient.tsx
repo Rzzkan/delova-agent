@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Limits } from "@/lib/seo";
 import type { Score } from "@/lib/scoring";
+import type { Price } from "@/lib/prices";
 import Shell, { useShell } from "./Shell";
-import { BTN, BTN_DEFAULT, Badge, Card, Empty, Note, PageTitle } from "./ui";
+import { BTN, BTN_DEFAULT, Badge, Card, Empty, Note, PageTitle, rp } from "./ui";
 
 type Platform = "shopee" | "tiktok";
-interface Row { id: string; name: string; status: string | null; title_score?: number; title_grade?: string }
+interface Row { id: string; name: string; status: string | null; title_score?: number; title_grade?: string; price?: Price }
 interface Detail extends Row { description: string; description_format: "teks" | "html"; limits: Limits; issues: string[]; title: Score; desc: Score; total: number }
 interface ShopInfo { shop_id: string; shop_name: string | null }
 
@@ -38,6 +39,7 @@ function Page({ platform }: { platform: Platform }) {
   const [page, setPage] = useState<{ items: Row[]; next: string | null; total: number | null } | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [onlyDisc, setOnlyDisc] = useState(false);
   const [view, setView] = useState<string | null>(null);
 
   const api = useCallback(
@@ -98,6 +100,7 @@ function Page({ platform }: { platform: Platform }) {
             <input className={`${inputCls} h-10 w-56`} placeholder="Cari nama produk…" value={q} onChange={(e) => setQ(e.target.value)} />
             <button className={`${BTN} ${BTN_DEFAULT}`}>Cari</button>
           </form>
+          <label className="flex h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input type="checkbox" className="size-4 accent-brand-500" checked={onlyDisc} onChange={(e) => setOnlyDisc(e.target.checked)} />Hanya yang diskon</label>
         </div>
       )}
       {err && <Note tone="warn">{err}</Note>}
@@ -112,14 +115,15 @@ function Page({ platform }: { platform: Platform }) {
             <Empty>Tidak ada produk.</Empty>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-white/5 dark:text-gray-400">
-                  <tr><th className="px-5 py-3 font-medium">Produk</th><th className="px-5 py-3 font-medium">Status</th><th className="px-5 py-3 font-medium">Skor judul</th><th className="px-5 py-3 text-right font-medium">Detail</th></tr>
+                  <tr><th className="px-5 py-3 font-medium">Produk</th><th className="px-5 py-3 text-right font-medium">Harga asli</th><th className="px-5 py-3 text-right font-medium">Harga diskon</th><th className="px-5 py-3 font-medium">Status</th><th className="px-5 py-3 font-medium">Skor judul</th><th className="px-5 py-3 text-right font-medium">Detail</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {page.items.map((p) => (
+                  {page.items.filter((p) => !onlyDisc || (p.price?.discount_pct ?? 0) > 0).map((p) => (
                     <tr key={p.id}>
                       <td className="px-5 py-3"><div className="font-medium text-gray-800 dark:text-gray-200">{p.name}</div><div className="font-mono text-xs text-gray-400">ID {p.id} · {p.name.length} karakter</div></td>
+                      <PriceCells p={p.price} />
                       <td className="px-5 py-3">{p.status ? <Badge tone={p.status === "NORMAL" || p.status === "ACTIVATE" ? "ok" : "mute"}>{p.status}</Badge> : "-"}</td>
                       <td className="px-5 py-3">{p.title_score == null ? "-" : <Badge tone={GRADE_TONE[p.title_grade ?? "D"]}>{p.title_score} · {p.title_grade}</Badge>}</td>
                       <td className="whitespace-nowrap px-5 py-3 text-right">
@@ -139,6 +143,20 @@ function Page({ platform }: { platform: Platform }) {
         </section>
       )}
       {view && <DetailModal id={view} shop={shop} api={api} onClose={() => setView(null)} />}
+    </>
+  );
+}
+
+function PriceCells({ p }: { p?: Price }) {
+  if (!p || p.current === null) return <><td className="px-5 py-3 text-right text-gray-400">-</td><td className="px-5 py-3 text-right text-gray-400">-</td></>;
+  const mark = p.variants ? <span className="ml-1 text-[10px] text-gray-400">mulai</span> : null;
+  const disc = (p.discount_pct ?? 0) > 0;
+  return (
+    <>
+      <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums">{p.original === null ? <span className="text-gray-400">-</span> : <span className={disc ? "text-gray-400 line-through" : ""}>{rp(p.original)}</span>}{mark}</td>
+      <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+        {disc ? <><b className="text-error-600">{rp(p.current)}</b> <Badge tone="bad">-{p.discount_pct}%</Badge></> : <span>{rp(p.current)}{p.current_max ? ` – ${rp(p.current_max)}` : ""}</span>}
+      </td>
     </>
   );
 }

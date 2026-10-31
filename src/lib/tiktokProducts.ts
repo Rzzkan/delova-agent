@@ -1,5 +1,6 @@
 /** Operasi produk TikTok Shop (API 202309): cari, detail, edit judul/deskripsi. ID selalu string. */
 import { TikTokClient } from "./tiktok";
+import { tiktokPrice } from "./prices";
 
 export interface TTSlim {
   item_id: string;
@@ -17,7 +18,7 @@ export async function searchProducts(c: TikTokClient, shopId: string, o: { statu
     body: o.status ? { status: o.status } : {},
   });
   return {
-    items: (d.products ?? []).map((p: any) => ({ item_id: String(p.id), item_name: String(p.title ?? ""), item_status: p.status as string | undefined })),
+    items: (d.products ?? []).map((p: any) => ({ item_id: String(p.id), item_name: String(p.title ?? ""), item_status: p.status as string | undefined, price: tiktokPrice(p) })),
     nextPageToken: (d.next_page_token as string | undefined) || undefined,
     total: d.total_count as number | undefined,
   };

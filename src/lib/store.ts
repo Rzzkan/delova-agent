@@ -131,6 +131,7 @@ export function setStoreForTests(s: Store | null) {
 export const KEYS = {
   tokens: "shopee:tokens",
   backups: "shopee:backups",
+  settings: "market:settings", // pengaturan yang diubah dari dashboard (mis. model AI); kunci terenkripsi
   analytics: "market:analytics", // cache laporan penjualan/traffic/retur/iklan per toko+periode
   aiInsight: "market:aiinsight", // cache hasil analisis AI
   proposals: "market:proposals", // id -> usulan perubahan judul/deskripsi menunggu persetujuan

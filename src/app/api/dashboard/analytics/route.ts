@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { loadConfig } from "@/lib/config";
 import { isAuthed, isJsonRequest } from "@/lib/dashboard";
 import { buildReport } from "@/lib/analytics";
-import { insightFor, llmReady, loadLlmConfig } from "@/lib/llm";
+import { insightFor, llmReady, resolveLlmConfig } from "@/lib/llm";
 import { ShopeeClient } from "@/lib/shopee";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   try {
     const c = new ShopeeClient(cfg);
     if (u.get("view") === "shops") {
-      return NextResponse.json({ ai_ready: llmReady(), shops: (await c.shops()).map((s) => ({ shop_id: String(s.shop_id), shop_name: s.shop_name ?? null })) }, { headers: NOSTORE });
+      return NextResponse.json({ ai_ready: llmReady(await resolveLlmConfig(cfg.mcpSecret)), shops: (await c.shops()).map((s) => ({ shop_id: String(s.shop_id), shop_name: s.shop_name ?? null })) }, { headers: NOSTORE });
     }
     const shop = Number(u.get("shop"));
     const days = Number(u.get("days") ?? 7);
@@ -41,10 +41,11 @@ export async function POST(req: Request) {
   const shop = Number(b.shop);
   const days = Number(b.days ?? 7);
   if (!Number.isInteger(shop) || shop <= 0 || !DAYS.includes(days)) return err("shop/days tidak valid", 400);
-  if (!llmReady()) return err("Model AI belum diatur: isi LLM_API_KEY dan LLM_MODEL di .env server (default Kenari).", 409);
+  const llm = await resolveLlmConfig(cfg.mcpSecret);
+  if (!llmReady(llm)) return err("Model AI belum diatur. Buka menu Pengaturan AI untuk mengisi model dan kunci.", 409);
   try {
     const report = await buildReport(new ShopeeClient(cfg), shop, days);
-    return NextResponse.json({ insight: await insightFor(report, { fresh: b.fresh === true, cfg: loadLlmConfig() }) });
+    return NextResponse.json({ insight: await insightFor(report, { fresh: b.fresh === true, cfg: llm }) });
   } catch (e) {
     return err(e, 502);
   }

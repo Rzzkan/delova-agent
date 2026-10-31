@@ -126,7 +126,7 @@ function Page() {
               <span className="flex-1" />
               {aiReady ? <button className={`${BTN} ${BTN_PRIMARY}`} disabled={aiBusy} onClick={() => runAi(!!ai)}>{aiBusy ? "Menganalisis…" : ai ? "Analisis ulang" : "Buat insight"}</button> : null}
             </div>
-            {!aiReady && <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Model AI belum diatur. Isi <code>LLM_API_KEY</code> dan <code>LLM_MODEL</code> di <code>.env</code> server (default penyedia Kenari), lalu jalankan ulang container.</p>}
+            {!aiReady && <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Model AI belum diatur. Buka <a className="text-brand-500 underline" href="/dashboard/pengaturan">Pengaturan AI</a> untuk memilih model dan mengisi kunci (default penyedia Kenari).</p>}
             {aiErr && <p className="mt-2 break-words text-sm text-error-600">{aiErr}</p>}
             {ai && (
               <div className="mt-3 space-y-3 text-sm text-gray-700 dark:text-gray-300">

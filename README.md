@@ -166,10 +166,6 @@ Menu **Penjualan & traffic** (Shopee, per toko, 7/14/30 hari): omzet, pesanan, n
 - Iklan: hanya iklan CPC toko; GMV Max terpisah dan belum dihitung. TikTok Shop belum didukung.
 - Laporan di-cache 30 menit (tombol Muat ulang untuk paksa).
 
-**Insight AI** memakai API kompatibel OpenAI, default Kenari. Isi di `.env` server lalu jalankan ulang container:
-```
-LLM_API_KEY=<kunci dari kenari.id>
-LLM_MODEL=<nama model Kenari>
-# LLM_BASE_URL=https://kenari.id/v1   (default)
-```
+**Insight AI** memakai API kompatibel OpenAI (default Kenari). Atur dari dashboard: menu **Pengaturan AI** — alamat API (ada preset Kenari/OpenRouter/Groq/Gemini), kunci API, tombol **Muat daftar model** (dropdown model yang tersedia), dan **Tes koneksi** (memakai isi formulir walau belum disimpan). Kunci disimpan terenkripsi (AES-256-GCM, diturunkan dari `MCP_SECRET`) dan tidak pernah dikirim balik ke browser; bila `MCP_SECRET` diganti, kunci harus diisi ulang. Pengaturan di dashboard menimpa `.env`; isian `.env` (`LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL`) hanya cadangan.
+
 Yang dikirim ke penyedia hanya angka agregat dan nama produk, tanpa data pembeli. Hasil di-cache 6 jam.

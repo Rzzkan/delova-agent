@@ -13,7 +13,7 @@ import * as ttProducts from "./tiktokProducts";
 import * as ttPromo from "./tiktokPromo";
 import * as proposals from "./proposals";
 import { buildReport } from "./analytics";
-import { insightFor, llmReady } from "./llm";
+import { insightFor, llmReady, resolveLlmConfig } from "./llm";
 import { scoreDescription, scoreTitle } from "./scoring";
 
 const shopId = z
@@ -330,8 +330,9 @@ export function registerTools(
     async (a, shop) => {
       const report = await buildReport(c(), await shop(), a.days, { force: a.refresh });
       if (!a.with_ai) return report;
-      if (!llmReady()) return { ...report, insight_error: "Model AI belum diatur (LLM_API_KEY, LLM_MODEL)." };
-      return { ...report, insight: await insightFor(report, { fresh: a.refresh }) };
+      const llm = await resolveLlmConfig();
+      if (!llmReady(llm)) return { ...report, insight_error: "Model AI belum diatur (menu Pengaturan AI di dashboard)." };
+      return { ...report, insight: await insightFor(report, { fresh: a.refresh, cfg: llm }) };
     },
   );
 

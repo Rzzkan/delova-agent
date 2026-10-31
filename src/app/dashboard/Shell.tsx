@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Logo } from "./ui";
 
-export type Section = "ringkasan" | "flashsale" | "kalender" | "voucher" | "produk-shopee" | "produk-tiktok" | "persetujuan" | "analitik";
+export type Section = "ringkasan" | "flashsale" | "kalender" | "voucher" | "produk-shopee" | "produk-tiktok" | "persetujuan" | "analitik" | "pengaturan";
 
 const ShellContext = createContext<{ unauthorized: () => void }>({ unauthorized: () => {} });
 /** Dipanggil halaman anak bila API membalas 401, supaya kembali ke layar login. */
@@ -19,6 +19,7 @@ const NAV: { id: string; label: string; href: string; section?: Section; icon: s
   { id: "persetujuan", label: "Persetujuan", href: "/dashboard/persetujuan", section: "persetujuan", icon: "M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { id: "produk-shopee", label: "Produk Shopee", href: "/dashboard/produk-shopee", section: "produk-shopee", icon: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" },
   { id: "produk-tiktok", label: "Produk TikTok Shop", href: "/dashboard/produk-tiktok", section: "produk-tiktok", icon: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" },
+  { id: "pengaturan", label: "Pengaturan AI", href: "/dashboard/pengaturan", section: "pengaturan", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" },
   { id: "antrian", label: "Antrian edit massal", href: "/dashboard#antrian", icon: "M4 6h16M4 12h16M4 18h10" },
 ];
 

@@ -4,6 +4,7 @@
  * Yang dikirim ke penyedia hanya angka agregat + nama produk; tidak ada data pembeli.
  */
 import type { Report } from "./analytics";
+import { decryptSecret, getLlmStored } from "./settings";
 import { KEYS, getStore } from "./store";
 
 export interface LlmConfig { baseUrl: string; apiKey: string; model: string }
@@ -12,6 +13,22 @@ export function loadLlmConfig(): LlmConfig {
     baseUrl: (process.env.LLM_BASE_URL || "https://kenari.id/v1").replace(/\/+$/, ""),
     apiKey: process.env.LLM_API_KEY || process.env.KENARI_API_KEY || "",
     model: process.env.LLM_MODEL || "",
+  };
+}
+/** Pengaturan dari dashboard (web) menimpa env; env jadi cadangan. */
+export async function resolveLlmConfig(secret = process.env.MCP_SECRET ?? ""): Promise<LlmConfig & { source: { key: "web" | "env" | "none"; model: "web" | "env" | "none"; base: "web" | "env" | "default" } }> {
+  const env = loadLlmConfig();
+  const st = await getLlmStored().catch(() => ({}) as Awaited<ReturnType<typeof getLlmStored>>);
+  const webKey = st.key_enc ? decryptSecret(st.key_enc, secret) : null;
+  return {
+    baseUrl: (st.base_url || env.baseUrl).replace(/\/+$/, ""),
+    apiKey: webKey || env.apiKey,
+    model: st.model || env.model,
+    source: {
+      key: webKey ? "web" : env.apiKey ? "env" : "none",
+      model: st.model ? "web" : env.model ? "env" : "none",
+      base: st.base_url ? "web" : process.env.LLM_BASE_URL ? "env" : "default",
+    },
   };
 }
 export const llmReady = (c = loadLlmConfig()) => Boolean(c.apiKey && c.model);

@@ -12,6 +12,8 @@ import { TikTokClient } from "./tiktok";
 import * as ttProducts from "./tiktokProducts";
 import * as ttPromo from "./tiktokPromo";
 import * as proposals from "./proposals";
+import { buildReport } from "./analytics";
+import { insightFor, llmReady } from "./llm";
 import { scoreDescription, scoreTitle } from "./scoring";
 
 const shopId = z
@@ -317,6 +319,19 @@ export function registerTools(
     async (a, shop) => {
       if (!a.confirm) throw new Error("Set confirm=true setelah pengguna menyetujui penghapusan.");
       return flash.deleteSale(c(), await shop(), a.flash_sale_id);
+    },
+  );
+
+
+  tool(
+    "sales_traffic_report",
+    "Laporan penjualan, traffic produk, retur, dan iklan satu toko Shopee untuk 7/14/30 hari: omzet, pesanan, ROAS/ACOS, produk terlaris, produk TRAFFIC BAGUS TAPI KONVERSI JELEK, dan retur tertinggi. Konversi = terjual ÷ dilihat seumur produk (Shopee tidak memberi funnel per periode). Bagian yang gagal ada di warnings. with_ai=true menambah insight dari model AI yang diatur server (Kenari).",
+    { shop_id: shopId, days: z.union([z.literal(7), z.literal(14), z.literal(30)]).default(7), refresh: z.boolean().default(false), with_ai: z.boolean().default(false) },
+    async (a, shop) => {
+      const report = await buildReport(c(), await shop(), a.days, { force: a.refresh });
+      if (!a.with_ai) return report;
+      if (!llmReady()) return { ...report, insight_error: "Model AI belum diatur (LLM_API_KEY, LLM_MODEL)." };
+      return { ...report, insight: await insightFor(report, { fresh: a.refresh }) };
     },
   );
 

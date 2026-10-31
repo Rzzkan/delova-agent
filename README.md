@@ -156,3 +156,20 @@ Dashboard hanya untuk **melihat dan menyetujui**. Alurnya:
 Menu **Produk Shopee** dan **Produk TikTok Shop** (terpisah) hanya menampilkan daftar produk + skor, tanpa tombol ubah/hapus. Semua penulisan mengikuti `SHOPEE_READ_ONLY`.
 
 **Skor SEO (0-100, grade A ≥90, B ≥75, C ≥60, D)** memakai aturan baku di `seo.ts`: judul (panjang min/maks per marketplace, < 70 karakter masih bisa dimaksimalkan, huruf kapital berlebihan, emoji, kata spam, kata diulang) dan deskripsi (panjang min/maks; < 300 karakter -15 sebagai saran). Skor gabungan = 60% judul + 40% deskripsi.
+
+## Penjualan, traffic, retur, iklan + Insight AI
+
+Menu **Penjualan & traffic** (Shopee, per toko, 7/14/30 hari): omzet, pesanan, nilai rata-rata pesanan, retur, biaya iklan, ROAS/ACOS/TACOS, grafik harian, **produk traffic bagus tapi konversi jelek**, **retur tertinggi** (dengan alasan utama), dan produk terlaris. Claude juga bisa memintanya lewat tool `sales_traffic_report` (opsi `with_ai`).
+
+- Sumber: order (`get_order_list`/`get_order_detail`), retur (`returns/get_return_list`), traffic produk (`get_item_extra_info`: views, sale), iklan (`ads/get_all_cpc_ads_daily_performance`). Tiap bagian gagal sendiri-sendiri dan tampil sebagai peringatan (mis. izin Retur/Iklan belum aktif di app Shopee).
+- **Konversi** = terjual ÷ dilihat seumur produk (Shopee tidak memberi funnel per periode). Produk dianggap "traffic bagus, konversi jelek" bila tayangannya di kelompok atas (≥100) dan konversinya di bawah median toko.
+- Iklan: hanya iklan CPC toko; GMV Max terpisah dan belum dihitung. TikTok Shop belum didukung.
+- Laporan di-cache 30 menit (tombol Muat ulang untuk paksa).
+
+**Insight AI** memakai API kompatibel OpenAI, default Kenari. Isi di `.env` server lalu jalankan ulang container:
+```
+LLM_API_KEY=<kunci dari kenari.id>
+LLM_MODEL=<nama model Kenari>
+# LLM_BASE_URL=https://kenari.id/v1   (default)
+```
+Yang dikirim ke penyedia hanya angka agregat dan nama produk, tanpa data pembeli. Hasil di-cache 6 jam.

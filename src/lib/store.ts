@@ -131,6 +131,8 @@ export function setStoreForTests(s: Store | null) {
 export const KEYS = {
   tokens: "shopee:tokens",
   backups: "shopee:backups",
+  analytics: "market:analytics", // cache laporan penjualan/traffic/retur/iklan per toko+periode
+  aiInsight: "market:aiinsight", // cache hasil analisis AI
   proposals: "market:proposals", // id -> usulan perubahan judul/deskripsi menunggu persetujuan
   productLog: "market:productlog", // id -> riwayat edit/hapus produk dari dashboard (backup nama+deskripsi lama)
   jobs: "shopee:jobs", // id -> JobMeta

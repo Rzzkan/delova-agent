@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discountPct, shopeePrice, tiktokPrice } from "../src/lib/prices";
+import { discountPct, shopeeModelPrice, shopeePrice, tiktokPrice } from "../src/lib/prices";
 
 describe("harga", () => {
   it("Shopee: diskon bila current < original", () => {
@@ -18,5 +18,14 @@ describe("harga", () => {
     expect(discountPct(200, 150)).toBe(25);
     expect(discountPct(100, 100)).toBeNull();
     expect(discountPct(null, 10)).toBeNull();
+  });
+  it("produk bervarian: varian termurah + rentang + ada diskon", () => {
+    const r = shopeeModelPrice([
+      { price_info: [{ original_price: 90000, current_price: 90000 }] },
+      { price_info: [{ original_price: 80000, current_price: 60000 }] },
+      { price_info: [{ original_price: 85000, current_price: 85000 }] },
+    ]);
+    expect(r).toMatchObject({ original: 80000, current: 60000, current_max: 90000, discount_pct: 25, variants: true, any_discount: true });
+    expect(shopeeModelPrice([])).toBeUndefined();
   });
 });

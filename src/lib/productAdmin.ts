@@ -13,7 +13,7 @@ import * as sp from "./products";
 import * as tp from "./tiktokProducts";
 import { ShopeeClient } from "./shopee";
 import { TikTokClient } from "./tiktok";
-import { Price, shopeePrice, tiktokPrice } from "./prices";
+import { Price, shopeeModelPrice, shopeePrice, tiktokPrice } from "./prices";
 import { Score, combined, scoreDescription, scoreTitle } from "./scoring";
 import { KEYS, getStore } from "./store";
 
@@ -91,9 +91,29 @@ export async function listProducts(
     }
     const info = ids.length ? await sp.getBaseInfo(c, sid, ids) : [];
     const byId = new Map(info.map((i) => [Number(i.item_id), i]));
+    // Produk bervarian: Shopee tidak memberi harga di base_info, harus lewat get_model_list.
+    const prices = new Map<number, Price | undefined>();
+    const present = ids.filter((id) => byId.has(id));
+    for (let k = 0; k < present.length; k += 5) {
+      await Promise.all(
+        present.slice(k, k + 5).map(async (id) => {
+          const i = byId.get(id);
+          let price = shopeePrice(i);
+          if (i?.has_model || !price) {
+            try {
+              const r = await c.get(sid, "/api/v2/product/get_model_list", { item_id: id });
+              price = shopeeModelPrice(r.response?.model ?? r.response?.model_list ?? []) ?? price;
+            } catch {
+              /* harga gagal dimuat untuk satu produk tidak menggagalkan daftar */
+            }
+          }
+          prices.set(id, price);
+        }),
+      );
+    }
     const items = ids.flatMap((id) => {
       const i = byId.get(id);
-      return i ? [withScore({ id: String(id), name: String(i.item_name ?? ""), status: (i.item_status as string) ?? null, price: shopeePrice(i) }, SH)] : [];
+      return i ? [withScore({ id: String(id), name: String(i.item_name ?? ""), status: (i.item_status as string) ?? null, price: prices.get(id) }, SH)] : [];
     });
     return { items, next, total };
   }

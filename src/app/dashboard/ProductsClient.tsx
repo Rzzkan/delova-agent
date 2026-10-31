@@ -120,7 +120,7 @@ function Page({ platform }: { platform: Platform }) {
                   <tr><th className="px-5 py-3 font-medium">Produk</th><th className="px-5 py-3 text-right font-medium">Harga asli</th><th className="px-5 py-3 text-right font-medium">Harga diskon</th><th className="px-5 py-3 font-medium">Status</th><th className="px-5 py-3 font-medium">Skor judul</th><th className="px-5 py-3 text-right font-medium">Detail</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {page.items.filter((p) => !onlyDisc || (p.price?.discount_pct ?? 0) > 0).map((p) => (
+                  {page.items.filter((p) => !onlyDisc || (p.price?.discount_pct ?? 0) > 0 || p.price?.any_discount).map((p) => (
                     <tr key={p.id}>
                       <td className="px-5 py-3"><div className="font-medium text-gray-800 dark:text-gray-200">{p.name}</div><div className="font-mono text-xs text-gray-400">ID {p.id} · {p.name.length} karakter</div></td>
                       <PriceCells p={p.price} />

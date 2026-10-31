@@ -9,6 +9,7 @@ export interface Price {
   current_max?: number | null; // TikTok: rentang antar SKU
   discount_pct: number | null; // null bila tidak sedang diskon
   variants?: boolean;
+  any_discount?: boolean; // ada varian yang sedang diskon
 }
 
 const num = (v: unknown): number | null => {
@@ -35,4 +36,26 @@ export function tiktokPrice(p: any): Price | undefined {
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   return { original: null, current: min, current_max: max > min ? max : null, discount_pct: null, variants: prices.length > 1 };
+}
+
+/** Harga dari get_model_list (produk bervarian): ambil varian termurah (harga berlaku), lengkap dengan harga aslinya. */
+export function shopeeModelPrice(models: any[]): Price | undefined {
+  const rows = (Array.isArray(models) ? models : [])
+    .map((m) => {
+      const pi = Array.isArray(m?.price_info) ? m.price_info[0] : undefined;
+      const current = num(pi?.current_price);
+      return pi && current !== null ? { current, original: num(pi.original_price) ?? current } : null;
+    })
+    .filter((r): r is { current: number; original: number } => r !== null);
+  if (!rows.length) return undefined;
+  const cheapest = rows.reduce((a, b) => (b.current < a.current ? b : a));
+  const maxCurrent = Math.max(...rows.map((r) => r.current));
+  return {
+    original: cheapest.original,
+    current: cheapest.current,
+    current_max: maxCurrent > cheapest.current ? maxCurrent : null,
+    discount_pct: discountPct(cheapest.original, cheapest.current),
+    variants: rows.length > 1,
+    any_discount: rows.some((r) => r.current < r.original),
+  };
 }

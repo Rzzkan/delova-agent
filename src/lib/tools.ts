@@ -11,6 +11,8 @@ import { ShopeeClient } from "./shopee";
 import { TikTokClient } from "./tiktok";
 import * as ttProducts from "./tiktokProducts";
 import * as ttPromo from "./tiktokPromo";
+import * as proposals from "./proposals";
+import { scoreDescription, scoreTitle } from "./scoring";
 
 const shopId = z
   .number()
@@ -482,5 +484,59 @@ export function registerTools(
       if (!a.confirm) throw new Error("Set confirm=true setelah pengguna menyetujui.");
       return ttPromo.deactivate(t(), await shop(), a.activity_id);
     },
+  );
+
+  // ------------------------------------------------------------ Usulan perubahan (disetujui di dashboard)
+
+  server.tool(
+    "propose_changes",
+    "Ajukan perubahan judul/deskripsi produk (Shopee atau TikTok) untuk DISETUJUI manusia di dashboard (menu Persetujuan). TIDAK menulis ke marketplace. Maks 40 produk per panggilan. Hasil memuat skor SEO sebelum/sesudah (judul, deskripsi) dan produk yang dilewati beserta alasannya. Usulan dikelompokkan per brand di dashboard untuk persetujuan massal.",
+    {
+      platform: z.enum(["shopee", "tiktok"]),
+      shop_id: z.union([z.number().int(), z.string()]).optional().describe("ID toko; kosong bila hanya satu toko terhubung"),
+      changes: z.array(queueChange.extend({ note: z.string().max(300).optional().describe("Alasan singkat perubahan, tampil di dashboard") })).min(1).max(40),
+    },
+    (async (a: any) => {
+      try {
+        const clients = { shopee: c(), tiktok: tiktokConfigured(loadTikTokConfig()) ? t() : undefined };
+        const platform = a.platform as "shopee" | "tiktok";
+        const sid = platform === "shopee" ? String(await c().resolveShop(a.shop_id === undefined ? undefined : Number(a.shop_id))) : await t().resolveShop(a.shop_id === undefined ? undefined : String(a.shop_id));
+        const shops = platform === "shopee" ? await c().shops() : await t().shops();
+        const name = (shops as any[]).find((x) => String(x.shop_id) === sid)?.shop_name ?? null;
+        const r = await proposals.createProposals(clients, platform, sid, name, a.changes);
+        return ok({
+          created: r.created.length,
+          skipped: r.skipped,
+          proposals: r.created.map((p) => ({ id: p.id, brand: p.brand, product_id: p.product_id, score_before: p.before.total, score_after: p.after.total, title: `${p.before.title.score}→${p.after.title.score}`, description: `${p.before.desc.score}→${p.after.desc.score}` })),
+          next: "Minta pengguna membuka dashboard > Persetujuan untuk menyetujui.",
+        });
+      } catch (e) {
+        return fail(e);
+      }
+    }) as any,
+  );
+
+  server.tool(
+    "list_proposals",
+    "Daftar usulan perubahan dan statusnya (pending, applied, rejected, failed, stale, reverted).",
+    { status: z.enum(["pending", "applied", "rejected", "failed", "stale", "reverted", "all"]).default("pending"), platform: z.enum(["shopee", "tiktok"]).optional() },
+    (async (a: any) => {
+      try {
+        const list = await proposals.listProposals({ status: a.status, platform: a.platform });
+        return ok(list.slice(0, 100).map((p) => ({ id: p.id, platform: p.platform, brand: p.brand, product_id: p.product_id, status: p.status, name: p.new_name ?? p.current_name, score: `${p.before.total}→${p.after.total}`, error: p.error })));
+      } catch (e) {
+        return fail(e);
+      }
+    }) as any,
+  );
+
+  server.tool(
+    "score_text",
+    "Beri skor SEO (0-100, grade A-D) untuk judul dan/atau deskripsi menurut aturan baku sistem, tanpa memanggil marketplace. Pakai untuk mencoba beberapa kandidat judul sebelum propose_changes.",
+    { platform: z.enum(["shopee", "tiktok"]), title: z.string().optional(), description: z.string().optional() },
+    (async (a: any) => {
+      const lim = a.platform === "shopee" ? seo.SHOPEE_LIMITS : seo.TIKTOK_LIMITS;
+      return ok({ title: a.title === undefined ? undefined : scoreTitle(a.title, lim), description: a.description === undefined ? undefined : scoreDescription(a.description, lim) });
+    }) as any,
   );
 }

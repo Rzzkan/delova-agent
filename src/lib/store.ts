@@ -131,6 +131,8 @@ export function setStoreForTests(s: Store | null) {
 export const KEYS = {
   tokens: "shopee:tokens",
   backups: "shopee:backups",
+  proposals: "market:proposals", // id -> usulan perubahan judul/deskripsi menunggu persetujuan
+  productLog: "market:productlog", // id -> riwayat edit/hapus produk dari dashboard (backup nama+deskripsi lama)
   jobs: "shopee:jobs", // id -> JobMeta
   progress: "shopee:jobprogress", // id -> Progress
   items: (id: string) => `shopee:jobitems:${id}`, // item_id -> JobItem

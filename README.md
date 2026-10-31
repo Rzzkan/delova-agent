@@ -144,3 +144,15 @@ tests/
 ```
 
 Versi Python/CLI sebelumnya (v0.1) masih ada di riwayat git.
+
+
+## Dashboard: lihat dan setujui (tanpa edit langsung)
+
+Dashboard hanya untuk **melihat dan menyetujui**. Alurnya:
+1. Minta Claude di chat: "usulkan perbaikan judul untuk produk Kids yang skornya di bawah 70". Claude memakai tool `propose_changes` (tidak menulis ke marketplace) dan `score_text` untuk mencoba kandidat judul.
+2. Buka menu **Persetujuan**: usulan dikelompokkan per brand (Wardrobe, Kids, Scarf, Daily) dengan skor judul/deskripsi sebelum → sesudah. Centang per produk atau per brand, lalu **Setujui** / **Tolak** massal.
+3. Saat disetujui, nilai lama dicadangkan lalu perubahan ditulis ke Shopee/TikTok. Bila produk berubah sejak usulan dibuat, usulan ditandai *Kedaluwarsa* dan tidak ditulis. Usulan yang sudah diterapkan bisa **dibatalkan** dari tab Diterapkan.
+
+Menu **Produk Shopee** dan **Produk TikTok Shop** (terpisah) hanya menampilkan daftar produk + skor, tanpa tombol ubah/hapus. Semua penulisan mengikuti `SHOPEE_READ_ONLY`.
+
+**Skor SEO (0-100, grade A ≥90, B ≥75, C ≥60, D)** memakai aturan baku di `seo.ts`: judul (panjang min/maks per marketplace, < 70 karakter masih bisa dimaksimalkan, huruf kapital berlebihan, emoji, kata spam, kata diulang) dan deskripsi (panjang min/maks; < 300 karakter -15 sebagai saran). Skor gabungan = 60% judul + 40% deskripsi.

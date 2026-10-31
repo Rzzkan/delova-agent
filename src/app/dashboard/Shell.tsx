@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Logo } from "./ui";
 
-export type Section = "ringkasan" | "flashsale" | "kalender" | "voucher";
+export type Section = "ringkasan" | "flashsale" | "kalender" | "voucher" | "produk-shopee" | "produk-tiktok" | "persetujuan";
 
 const ShellContext = createContext<{ unauthorized: () => void }>({ unauthorized: () => {} });
 /** Dipanggil halaman anak bila API membalas 401, supaya kembali ke layar login. */
@@ -15,6 +15,9 @@ const NAV: { id: string; label: string; href: string; section?: Section; icon: s
   { id: "flashsale", label: "Flash sale", href: "/dashboard/flash-sale", section: "flashsale", icon: "M13 2L4 14h7l-1 8 9-12h-7l1-8z" },
   { id: "kalender", label: "Kalender flash sale", href: "/dashboard/kalender", section: "kalender", icon: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
   { id: "voucher", label: "Voucher aktif", href: "/dashboard/voucher", section: "voucher", icon: "M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4V8zM13 6v12" },
+  { id: "persetujuan", label: "Persetujuan", href: "/dashboard/persetujuan", section: "persetujuan", icon: "M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { id: "produk-shopee", label: "Produk Shopee", href: "/dashboard/produk-shopee", section: "produk-shopee", icon: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" },
+  { id: "produk-tiktok", label: "Produk TikTok Shop", href: "/dashboard/produk-tiktok", section: "produk-tiktok", icon: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" },
   { id: "antrian", label: "Antrian edit massal", href: "/dashboard#antrian", icon: "M4 6h16M4 12h16M4 18h10" },
 ];
 
@@ -68,7 +71,7 @@ export default function Shell({ active, children }: { active: Section; children:
             })}
           </nav>
           <div className="mt-auto rounded-xl bg-gray-50 p-4 text-xs text-gray-500 dark:bg-white/5 dark:text-gray-400">
-            Ubah produk, flash sale, dan antrian paling mudah lewat chat Claude. Dashboard ini untuk memantau.
+            Dashboard ini hanya untuk melihat dan menyetujui. Usulan perubahan dibuat lewat chat Claude.
           </div>
         </aside>
 
